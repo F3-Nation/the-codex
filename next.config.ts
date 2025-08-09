@@ -38,11 +38,31 @@ const nextConfig: NextConfig = {
     return config;
   },
 
-  
-  // This is for development
-  allowedDevOrigins: [
-    'https://3000-firebase-the-codex-1753381827295.cluster-pgviq6mvsncnqxx6kr7pbz65v6.cloudworkstations.dev',
-  ],
+  async headers() {
+    // Static CORS headers for callback endpoints.
+    // Dynamic handling also exists in middleware.ts for preflight and origin negotiation.
+    const allowOrigin =
+      process.env.CLIENT_ORIGIN ||
+      (process.env.NODE_ENV === 'development' ? 'https://localhost:3001' : 'https://auth.f3nation.com');
+    return [
+      {
+        source: '/callback/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: allowOrigin },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+      {
+        source: '/api/callback/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: allowOrigin },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

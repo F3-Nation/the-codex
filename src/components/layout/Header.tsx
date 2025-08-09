@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu, Flame } from 'lucide-react';
+import { AuthControls } from '@/components/shared/AuthControls';
 
 const navItems = [
   { href: '/', label: 'Home' },
@@ -31,6 +32,10 @@ export function Header() {
           ))}
         </nav>
 
+        <div className="hidden md:flex items-center">
+          <AuthControls variant="desktop" />
+        </div>
+
         <div className="md:hidden">
           <Sheet>
             <SheetTrigger asChild>
@@ -50,6 +55,7 @@ export function Header() {
                     {item.label}
                   </Link>
                 ))}
+                <AuthControls variant="mobile" />
               </nav>
             </SheetContent>
           </Sheet>

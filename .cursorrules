@@ -1,0 +1,291 @@
+# F3 Codex - Cursor Rules & Project Overview
+
+## Project Description
+F3 Codex is a Next.js application serving as the official Exicon (exercise dictionary) and Lexicon (terminology dictionary) for F3 Nation. It provides a sophisticated searchable database of F3 terminology, exercises, and community knowledge with advanced content management and AI-powered cross-referencing capabilities.
+
+## Tech Stack & Core Dependencies
+- **Framework**: Next.js 15.2.3 with App Router and TypeScript
+- **Database**: PostgreSQL with `pg` client (connection pooling via `src/lib/db.ts`)
+- **Styling**: Tailwind CSS + shadcn/ui component system (35+ pre-built components)
+- **UI Library**: Radix UI primitives with custom styling and `class-variance-authority`
+- **Forms**: React Hook Form with Zod validation and `@hookform/resolvers`
+- **Authentication**: NextAuth.js v4.24.11 with external OAuth provider + role-based access
+- **AI Integration**: Google AI Genkit v1.8.0 for automated text linking and cross-referencing
+- **Database Migrations**: node-pg-migrate v7.9.1 for schema evolution
+- **Icons**: Lucide React (475+ icons)
+- **Monitoring**: Sentry for error tracking
+- **State Management**: TanStack Query v5.66.0
+- **Deployment**: Firebase hosting with Docker support
+
+## Database Schema & Architecture
+
+### Core Tables
+- `entries`: Main content (id SERIAL, title VARCHAR(255), definition TEXT, type VARCHAR(50), aliases JSONB, video_link TEXT, mentioned_entries JSONB, updated_at TIMESTAMP)
+- `tags`: Tag definitions (id SERIAL, name VARCHAR(255) UNIQUE)
+- `entry_tags`: Many-to-many relationship (entry_id, tag_id, PRIMARY KEY)
+- `entry_references`: Cross-references (source_entry_id, target_entry_id, PRIMARY KEY)
+- `user_submissions`: Community contributions (id SERIAL, submission_type VARCHAR(50), data JSONB, submitter_name, submitter_email, timestamp, status)
+
+### Data Types & Enums
+- **Entry Types**: 'exicon' (exercises) | 'lexicon' (terminology)
+- **Submission Types**: 'new' (new entry suggestions) | 'edit' (modifications)
+- **User Roles**: 'admin' | 'user'
+- **Submission Status**: 'pending' | 'approved' | 'rejected'
+
+## File Structure & Organization
+```
+src/
+├── app/                 # Next.js App Router pages
+│   ├── layout.tsx       # Root layout with providers
+│   ├── page.tsx         # Homepage with featured content
+│   ├── globals.css      # Tailwind CSS + custom styles
+│   ├── actions.ts       # Server actions
+│   ├── api/             # API routes
+│   ├── admin/           # Admin panel (protected)
+│   ├── exicon/          # Exercise dictionary pages
+│   ├── lexicon/         # Terminology dictionary pages
+│   └── submit/          # Community submission forms
+├── components/          # Reusable UI components
+│   ├── ui/              # shadcn/ui base components (35+ components)
+│   ├── shared/          # Common app components
+│   ├── admin/           # Admin-specific components
+│   ├── exicon/          # Exercise-specific components
+│   ├── lexicon/         # Terminology-specific components
+│   ├── submission/      # Submission form components
+│   └── layout/          # Layout components (Header, Footer, etc.)
+├── lib/                 # Utilities, database, and API functions
+│   ├── api.ts           # Centralized database operations (896 lines)
+│   ├── types.ts         # TypeScript definitions (103 lines)
+│   ├── db.ts            # Database connection with pooling
+│   ├── auth.ts          # NextAuth configuration with role-based access
+│   ├── utils.ts         # Utilities (cn, mention parsing, etc.)
+│   ├── data.ts          # Static data and constants
+│   ├── mentionUtils.ts  # Entry mention parsing and linking
+│   ├── providers.tsx    # React Query and other providers
+│   ├── exicon.csv       # Exercise data (781 entries)
+│   └── lexicon.csv      # Terminology data (721 entries)
+├── hooks/               # Custom React hooks
+├── ai/                  # AI integration and flows
+│   ├── genkit.ts        # Genkit configuration
+│   ├── dev.ts           # Development server
+│   └── flows/           # AI processing flows
+│       └── auto-link-references.ts # Auto-linking algorithm
+└── middleware.ts        # Route protection and auth
+
+db/                      # Database schema and migrations
+├── schema.sql           # Core schema definition
+├── tags_schema.sql      # Tag system schema
+└── user_submissions_schema.sql # Community submission schema
+
+migrations/              # Database migration files
+├── 1747064544503_create-tags-table.js
+├── 1747064550000_create_entries_table.js
+└── 1747064552223_create-user-submissions-table.js
+```
+
+## Development Guidelines & Patterns
+
+### Naming Conventions
+- **Components**: PascalCase (`EntryCard.tsx`, `SearchFilters.tsx`)
+- **Files/Directories**: kebab-case (`user-submissions/`, `auto-link-references.ts`)
+- **Constants**: SCREAMING_SNAKE_CASE (`DATABASE_URL`, `NEXTAUTH_SECRET`)
+- **Functions**: camelCase (`getEntries`, `parseEntryMentions`)
+- **Database**: snake_case (`entry_tags`, `mentioned_entries`)
+
+### TypeScript Patterns
+```typescript
+// Use defined interfaces from src/lib/types.ts
+import { AnyEntry, ExiconEntry, LexiconEntry, UserSubmission } from '@/lib/types';
+
+// Extend BaseEntry for new entry types
+interface CustomEntry extends BaseEntry {
+  customField: string;
+}
+
+// Use union types for polymorphic data
+type EntryType = ExiconEntry | LexiconEntry;
+
+// Leverage generic submission types
+type NewSubmission = UserSubmissionBase<NewEntrySuggestionData>;
+```
+
+### Component Architecture
+- **Base Components**: Use shadcn/ui from `@/components/ui/`
+- **Variants**: Extend with `class-variance-authority` for consistent styling
+- **Feature Components**: Organize by domain (`@/components/lexicon/`, `@/components/exicon/`)
+- **Shared Components**: Common elements in `@/components/shared/`
+- **Path Aliases**: Use `@/` prefix for clean imports
+
+### Authentication & Authorization
+```typescript
+// Server components
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+const session = await getServerSession(authOptions);
+
+// Client components  
+import { useSession } from 'next-auth/react';
+
+const { data: session } = useSession();
+
+// Middleware protection (src/middleware.ts)
+// Admin routes automatically protected, requires role: 'admin'
+```
+
+## Key Features & Implementation
+
+### Search & Filtering System
+- **Full-text search** across title, definition, aliases using PostgreSQL
+- **Tag-based filtering** with AND/OR logic (`FilterLogic` enum)
+- **Type filtering** (exicon vs lexicon entries)
+- **Alias matching** for alternative entry names
+- **Advanced filters** with multiple criteria combination
+
+### Content Management
+- **Dual content types**: Exercises (exicon) and terminology (lexicon)
+- **Rich text editing** with mention support (@entry-name syntax)
+- **Video link integration** for exercise demonstrations
+- **Tag categorization** with many-to-many relationships
+- **Cross-referencing** with bi-directional entry relationships
+
+### Community Submission System
+1. **Public submission forms** for new entries and edits
+2. **JSON storage** in `user_submissions` table with flexible schema
+3. **Admin review workflow** via protected `/admin` interface
+4. **Status tracking** (pending → approved/rejected)
+5. **Email notifications** for submission updates
+
+### AI-Powered Features
+- **Automatic cross-referencing** via Google AI Genkit
+- **Entry mention detection** with `@entry-name` syntax
+- **Content linking** between related entries
+- **Rate limiting** with graceful fallbacks
+- **Manual override** capabilities for AI suggestions
+
+## Environment Configuration
+
+### Required Variables
+```env
+# Database
+DATABASE_URL="postgresql://user:password@host:port/database"
+
+# Authentication
+NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+
+# External OAuth Provider
+EXTERNAL_AUTH_AUTHORIZATION_URL="https://auth.example.com/oauth/authorize"
+EXTERNAL_AUTH_TOKEN_URL="https://auth.example.com/oauth/token"
+EXTERNAL_AUTH_USERINFO_URL="https://auth.example.com/oauth/userinfo"
+EXTERNAL_AUTH_CLIENT_ID="your-client-id"
+EXTERNAL_AUTH_CLIENT_SECRET="your-client-secret"
+
+# AI Integration (Optional)
+GOOGLE_AI_API_KEY="your-google-ai-key"
+
+# Monitoring
+SENTRY_DSN="your-sentry-dsn"
+```
+
+### Database Setup Commands
+```bash
+# Create migration
+npm run db:migrate:create MIGRATION_NAME
+
+# Apply migrations
+npm run db:migrate:up
+
+# Rollback migrations  
+npm run db:migrate:down NUMBER
+
+# Import data from CSV
+npm run db:import-data
+```
+
+### Development Commands
+```bash
+# Development server (with Turbopack)
+npm run dev
+
+# AI development server
+npm run genkit:dev
+npm run genkit:watch
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
+
+# Build and deploy
+npm run build
+npm run deploy
+```
+
+## Current State & Context
+
+### Active Features
+- **Content management system** with 1500+ entries
+- **Community submission system** with active user base
+- **Advanced search and filtering** with multiple criteria
+- **Admin panel** for content management (authentication in progress)
+- **Cross-referencing system** with AI-powered linking (temporarily disabled)
+- **Mobile-responsive design** with modern UI/UX
+
+### Data Sources
+- **Primary contributor**: roma@f3nation.com (1500+ submissions)
+- **CSV imports**: `src/lib/exicon.csv` (781 entries), `src/lib/lexicon.csv` (721 entries)
+- **Community submissions** via public forms
+- **Admin interface** for direct entry management
+
+### Known Issues & Limitations
+- **AI linking temporarily disabled** due to rate limits
+- **Admin authentication** requires external OAuth provider setup
+- **Build errors/linting ignored** for rapid development (typescript.ignoreBuildErrors: true)
+- **Open admin access** (authentication middleware needs full implementation)
+
+### Performance Optimizations
+- **Database connection pooling** for efficient resource usage
+- **Turbopack** for faster development builds
+- **SSR optimization** with strategic client/server component separation
+- **CSS custom properties** for theme consistency
+- **Component lazy loading** where appropriate
+
+## Troubleshooting Guide
+
+### Database Connection Issues
+1. **Verify DATABASE_URL** is correctly formatted and accessible
+2. **Check migration status**: `npm run db:migrate:up` and watch for errors
+3. **Inspect pgmigrations table** to confirm successful migrations
+4. **Test connection** with direct PostgreSQL client (psql, DBeaver)
+5. **SSL configuration** varies by environment (local vs production)
+
+### Authentication Issues
+1. **External auth server** must be properly configured and accessible
+2. **NEXTAUTH_SECRET** should be cryptographically secure
+3. **Callback URLs** must match registered OAuth application
+4. **Role assignment** happens in auth callback (check `src/lib/auth.ts`)
+
+### AI Integration Issues
+1. **Google AI API key** must be valid and have sufficient quota
+2. **Rate limiting** may require implementing backoff strategies
+3. **Fallback mechanisms** should handle API failures gracefully
+
+### TypeScript Issues
+1. **Import types** from `@/lib/types` rather than defining new ones
+2. **Use discriminated unions** for entry type handling
+3. **Leverage existing interfaces** and extend when needed
+
+## Best Practices for Development
+
+1. **Database Operations**: Always use connection pooling via `getClient()`
+2. **Type Safety**: Leverage existing TypeScript definitions and extend appropriately
+3. **Component Reuse**: Use shadcn/ui base components and create variants
+4. **Authentication**: Respect role-based access control patterns
+5. **Error Handling**: Implement proper error boundaries and user feedback
+6. **Performance**: Consider database query optimization and component lazy loading
+7. **Testing**: Test database migrations thoroughly before applying
+8. **Code Style**: Follow established naming conventions and file organization
+9. **F3 Context**: Understand F3 Nation terminology and exercise culture
+10. **Community Focus**: Design features with community contribution and engagement in mind 

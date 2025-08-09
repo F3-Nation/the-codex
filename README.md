@@ -111,3 +111,66 @@ We welcome contributions! If you would like to help improve this project, please
 4.  Push to the branch (`git push origin feature/your-feature-name`).
 
 5.  Open a Pull Request.
+
+## Authentication (F3 Auth Provider)
+
+This app integrates with the F3 Auth Provider using the `f3-nation-auth-sdk`.
+
+- SDK: [f3-nation-auth-sdk](https://www.npmjs.com/package/f3-nation-auth-sdk?activeTab=readme)
+- Flow:
+  1. `/login` fetches public OAuth config and redirects to the Auth Provider authorize endpoint
+  2. Provider redirects back to our `/api/callback` (adds CORS headers) → forwards to `/callback`
+  3. `/callback` exchanges the code for a token via server action
+  4. User profile is fetched through a same-origin proxy at `/api/auth/userinfo` to avoid CORS
+
+### Local development
+
+- Run Auth Provider on port 3000 (HTTPS): `npm run dev` in the provider repo
+- Run Codex on port 3001:
+  - HTTPS: `npm run dev:https`
+  - HTTP: `npm run dev` (not recommended for OAuth callback)
+
+Set `.env.local` in this repo:
+
+```
+AUTH_PROVIDER_URL=https://localhost:3000
+OAUTH_CLIENT_ID=your-client-id
+OAUTH_CLIENT_SECRET=your-client-secret
+OAUTH_REDIRECT_URI=https://localhost:3001/api/callback
+```
+
+The OAuth client registered in the provider must include:
+- `redirect_uris`: `https://localhost:3001/api/callback`
+- `allowed_origin`: `https://localhost:3001`
+
+### Production
+
+Set the same variables via Firebase Secret Manager (see `apphosting.yaml`).
+
+```
+AUTH_PROVIDER_URL=https://auth.f3nation.com
+OAUTH_CLIENT_ID=...
+OAUTH_CLIENT_SECRET=...
+OAUTH_REDIRECT_URI=https://<your-codex-domain>/api/callback
+```
+
+### Files of interest
+
+- `src/app/login/page.tsx` – builds state and starts the OAuth flow
+- `src/app/api/callback/route.ts` – CORS + redirects to `/callback`
+- `src/app/callback/page.tsx` – exchanges code for token and fetches profile
+- `src/app/api/auth/userinfo/route.ts` – server proxy to provider `/userinfo`
+- `src/app/auth-actions.ts` – wraps SDK calls
+- `middleware.ts` – adds CORS headers for callback routes
+- `next.config.ts` – static headers for callback routes
+- `src/components/shared/AuthControls.tsx` – login/logout UI in header
+
+### Troubleshooting
+
+- CORS errors on `/api/oauth/userinfo`:
+  - Use `/api/auth/userinfo` proxy (already wired in `/callback`)
+  - Ensure provider `allowed_origin` matches Codex origin
+- Mismatched redirect URI:
+  - Ensure `OAUTH_REDIRECT_URI` exactly matches the provider’s configured redirect URIs
+- Wrong ports:
+  - Provider on 3000 (HTTPS), Codex on 3001 (HTTPS)

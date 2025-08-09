@@ -55,13 +55,9 @@ function normalizeAliases(aliases: unknown, entryId: string): { id: string; name
 }
 
 export default async function ExiconPage() {
-  // Add runtime environment debugging
-  console.log('🔍 ExiconPage Runtime Debug:');
-  console.log('- NODE_ENV:', process.env.NODE_ENV);
-  console.log('- DATABASE_URL available:', !!process.env.DATABASE_URL);
-  console.log('- DATABASE_URL length:', process.env.DATABASE_URL?.length || 0);
-  console.log('- DATABASE_URL starts with postgresql:', process.env.DATABASE_URL?.startsWith('postgresql://'));
-  console.log('- All env vars starting with DATABASE:', Object.keys(process.env).filter(k => k.includes('DATABASE')));
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🔍 ExiconPage: fetching entries');
+  }
 
   let allEntries: AnyEntry[] = [];
   let enrichedEntries: ExiconEntry[] = [];
@@ -111,7 +107,7 @@ export default async function ExiconPage() {
       allAvailableTags = Array.from(uniqueTags.values());
 
     } catch (enrichmentError) {
-      console.error("❌ ExiconPage: Failed to enrich entries:", enrichmentError);
+      console.error('❌ ExiconPage: Failed to enrich entries:', enrichmentError);
       // Fallback to basic entries without enrichment
       enrichedEntries = exiconEntries.map(entry => ({
         ...entry,
@@ -123,29 +119,13 @@ export default async function ExiconPage() {
     }
 
   } catch (fetchError) {
-    console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);
-    errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;
-
-    // Return detailed debug info in the error fallback
-    return (
-      <PageContainer>
-        <div className="text-center py-12">
-          <h1 className="text-3xl font-bold mb-4">F3 Exicon</h1>
-          <p className="text-red-500 mb-4">Error loading data: {errorMessage}</p>
-          <div className="text-left max-w-md mx-auto bg-gray-100 p-4 rounded text-sm">
-            <p><strong>Runtime Debug Info:</strong></p>
-            <p>DATABASE_URL available: {process.env.DATABASE_URL ? 'Yes' : 'No'}</p>
-            <p>NODE_ENV: {process.env.NODE_ENV}</p>
-            <p>URL length: {process.env.DATABASE_URL?.length || 0}</p>
-            <p>Starts with postgresql: {process.env.DATABASE_URL?.startsWith('postgresql://') ? 'Yes' : 'No'}</p>
-            <p>DB env vars: {Object.keys(process.env).filter(k => k.includes('DATABASE')).join(', ')}</p>
-          </div>
-        </div>
-      </PageContainer>
-    );
+    console.error('❌ ExiconPage: Failed to fetch entries:', fetchError);
+    errorMessage = 'Failed to load entries. Please try again later.';
   }
 
-  console.log('🔍 ExiconPage: Rendering with', enrichedEntries.length, 'entries');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🔍 ExiconPage: Rendering with', enrichedEntries.length, 'entries');
+  }
 
   return (
     <PageContainer>

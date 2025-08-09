@@ -2,10 +2,10 @@
 import * as admin from 'firebase-admin';
 
 if (!admin.apps.length) {
-  const serviceAccountKeyJson = process.env.MY_APP_FIREBASE_ADMIN_KEY;
+  const serviceAccountKeyJson = process.env.FIREBASE_ADMIN_SDK_KEY;
 
   if (!serviceAccountKeyJson) {
-    console.error('❌ CRITICAL: MY_APP_FIREBASE_ADMIN_KEY environment variable is not set.');
+    console.error('❌ CRITICAL: FIREBASE_ADMIN_SDK_KEY environment variable is not set.');
     throw new Error('Firebase Admin SDK key is missing. Cannot initialize Admin SDK.');
   }
 

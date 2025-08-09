@@ -5,18 +5,20 @@ import { Pool, type PoolClient } from 'pg';
 const connectionString = process.env.DATABASE_URL;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Debug logging
-console.log('🔍 Environment debug info:');
-console.log('- NODE_ENV:', process.env.NODE_ENV);
-console.log('- DATABASE_URL available:', !!connectionString);
-console.log('- DATABASE_URL length:', connectionString?.length || 0);
-console.log('- DATABASE_URL starts with postgresql:', connectionString?.startsWith('postgresql://'));
-console.log('- All env vars starting with DATABASE:', Object.keys(process.env).filter(k => k.includes('DATABASE')));
+// Debug logging (development only)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('🔍 Environment debug info:');
+  console.log('- NODE_ENV:', process.env.NODE_ENV);
+  console.log('- DATABASE_URL available:', !!connectionString);
+  console.log('- DATABASE_URL length:', connectionString?.length || 0);
+  console.log('- DATABASE_URL starts with postgresql:', connectionString?.startsWith('postgresql://'));
+  console.log('- All env vars starting with DATABASE:', Object.keys(process.env).filter(k => k.includes('DATABASE')));
+}
 
 // More comprehensive build-time detection for Firebase App Hosting
 const isBuildTime =
   process.env.NEXT_PHASE === 'phase-production-build' ||
-  process.env.NODE_ENV === 'development' && !connectionString ||
+  (process.env.NODE_ENV === 'development' && !connectionString) ||
   process.argv.includes('build') ||
   process.argv.includes('next:build');
 
@@ -26,7 +28,12 @@ let pool: Pool | null = null;
 if (!isBuildTime && connectionString && connectionString !== 'client-database-url') {
   console.log('🔗 Initializing database connection pool...');
 
-  const ssl = isProduction ? { rejectUnauthorized: false } : false;
+  const ssl = isProduction
+    ? {
+        ca: process.env.PG_CA,
+        rejectUnauthorized: true,
+      }
+    : false;
 
   pool = new Pool({
     connectionString,

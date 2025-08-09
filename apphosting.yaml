@@ -1,10 +1,35 @@
 runConfig:
   minInstances: 0
+# Environment variables are sourced from Secret Manager in production.
 env:
   - variable: DATABASE_URL
     secret: client-database-url
   - variable: FIREBASE_ADMIN_SDK_KEY
     secret: firebase-admin-sdk-key
+    availability:
+      - BUILD
+      - RUNTIME
+  # Base URL of the Auth Provider (e.g., https://auth.f3nation.com)
+  - variable: AUTH_PROVIDER_URL
+    secret: client-auth-provider-url
+    availability:
+      - BUILD
+      - RUNTIME
+  # OAuth client ID issued by the provider for this app
+  - variable: OAUTH_CLIENT_ID
+    secret: client-oauth-client-id
+    availability:
+      - BUILD
+      - RUNTIME
+  # OAuth client secret issued by the provider for this app
+  - variable: OAUTH_CLIENT_SECRET
+    secret: client-oauth-client-secret
+    availability:
+      - BUILD
+      - RUNTIME
+  # Exact callback URL for this app (e.g., https://<domain>/api/callback)
+  - variable: OAUTH_REDIRECT_URI
+    secret: client-oauth-redirect-uri
     availability:
       - BUILD
       - RUNTIME
