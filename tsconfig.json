@@ -22,6 +22,7 @@
         "name": "next"
       }
     ],
+    "types": ["drizzle-orm/node-postgres"],
     "paths": {
       "@/*": [
         "./src/*"
