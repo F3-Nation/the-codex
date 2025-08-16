@@ -3,8 +3,10 @@
 
 import { createSubmissionInDatabase, fetchTagsFromDatabase as apiFetchTagsFromDatabase } from '@/lib/api';
 import type { NewUserSubmission, NewEntrySuggestionData, EditEntrySuggestionData, Tag, EntryWithReferences } from '@/lib/types';
-import { getClient } from '@/lib/db';
-import { transformDbRowToEntry } from '@/lib/api';
+import { db } from '@/drizzle/db';
+import { entries, entryTags, tags } from '@/drizzle/schema';
+import { eq, ilike, or, sql, inArray } from 'drizzle-orm';
+import { toAnyEntryBase, withTags } from '@/lib/api';
 
 /**
  * Searches for entries by name or alias for autocomplete suggestions.
@@ -13,7 +15,6 @@ import { transformDbRowToEntry } from '@/lib/api';
  */
 export async function searchEntriesByName(query: string): Promise<EntryWithReferences[]> {
 
-  const client = await getClient();
   try {
     if (!query || query.trim() === '') {
       return [];
@@ -22,82 +23,99 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
     const trimmedQuery = query.trim().toLowerCase();
     const searchQuery = `%${trimmedQuery}%`;
 
-    const res = await client.query(
-      `SELECT
-            e.id,
-            e.title,
-            e.definition,
-            e.type,
-            e.aliases,
-            e.video_link,
-            e.mentioned_entries,
-            ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array,
-            -- More aggressive priority scoring
-            CASE 
-              -- Exact match on full title gets highest priority
-              WHEN LOWER(e.title) = $2 THEN 1
-              -- Title equals just the query (for single word titles)
-              WHEN LOWER(e.title) = $2 THEN 1
-              -- Exact match on individual words in title, prefer if it's the last word
-              WHEN $2 = ANY(string_to_array(LOWER(e.title), ' ')) THEN 
-                CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 2 ELSE 3 END
-              -- Title starts with query gets fourth priority  
-              WHEN LOWER(e.title) LIKE $3 THEN 4
-              -- Exact match in aliases gets fifth priority
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                WHERE LOWER(alias_elem) = $2
-              ) THEN 5
-              -- Exact match on words in aliases, prefer if it ends with the query
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                WHERE $2 = ANY(string_to_array(LOWER(alias_elem), ' '))
-              ) THEN 
-                CASE WHEN EXISTS (
-                  SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                  WHERE LOWER(alias_elem) LIKE '%' || $2
-                ) THEN 6 ELSE 7 END
-              -- Alias starts with query gets eighth priority
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem  
-                WHERE LOWER(alias_elem) LIKE $3
-              ) THEN 8
-              -- Title contains query gets ninth priority
-              WHEN LOWER(e.title) LIKE $1 THEN 9
-              -- Alias contains query gets lowest priority
-              ELSE 10
-            END as priority,
-            -- Prefer shorter titles and titles ending with the search term
-            LENGTH(e.title) as title_length,
-            -- Boost score for titles ending with the search term
-            CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 0 ELSE 1 END as ending_boost
-         FROM
-            entries e
-         LEFT JOIN
-            entry_tags et ON e.id = et.entry_id
-         LEFT JOIN
-            tags t ON et.tag_id = t.id
-         WHERE
-            LOWER(e.title) LIKE $1 
-            OR EXISTS (
-              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-              WHERE LOWER(alias_elem) LIKE $1
-            )
-         GROUP BY
-            e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
-         ORDER BY
-            priority ASC, ending_boost ASC, title_length ASC, e.title ASC
-         LIMIT 10`,
-      [searchQuery, trimmedQuery, `${trimmedQuery}%`]
-    );
+    // First get matching entries with their basic info
+    const entryRows = await db
+      .select({
+        id: entries.id,
+        title: entries.title,
+        definition: entries.definition,
+        type: entries.type,
+        aliases: entries.aliases,
+        video_link: entries.video_link,
+        mentioned_entries: entries.mentioned_entries,
+        priority: sql<number>`
+          CASE 
+            WHEN LOWER(${entries.title}) = ${trimmedQuery} THEN 1
+            WHEN ${trimmedQuery} = ANY(string_to_array(LOWER(${entries.title}), ' ')) THEN 
+              CASE WHEN LOWER(${entries.title}) LIKE ${'%' + trimmedQuery} THEN 2 ELSE 3 END
+            WHEN LOWER(${entries.title}) LIKE ${trimmedQuery + '%'} THEN 4
+            WHEN EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem 
+              WHERE LOWER(alias_elem) = ${trimmedQuery}
+            ) THEN 5
+            WHEN EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+              WHERE ${trimmedQuery} = ANY(string_to_array(LOWER(alias_elem), ' '))
+            ) THEN 
+              CASE WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+                WHERE LOWER(alias_elem) LIKE ${'%' + trimmedQuery}
+              ) THEN 6 ELSE 7 END
+            WHEN EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+              WHERE LOWER(alias_elem) LIKE ${trimmedQuery + '%'}
+            ) THEN 8
+            WHEN LOWER(${entries.title}) LIKE ${searchQuery} THEN 9
+            ELSE 10
+          END
+        `,
+        title_length: sql<number>`LENGTH(${entries.title})`,
+        ending_boost: sql<number>`
+          CASE WHEN LOWER(${entries.title}) LIKE ${'%' + trimmedQuery} THEN 0 ELSE 1 END
+        `
+      })
+      .from(entries)
+      .where(
+        or(
+          ilike(entries.title, searchQuery),
+          sql`EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem 
+            WHERE LOWER(alias_elem) LIKE ${searchQuery}
+          )`
+        )
+      )
+      .orderBy(
+        sql`priority ASC`,
+        sql`ending_boost ASC`, 
+        sql`title_length ASC`,
+        sql`${entries.title} ASC`
+      )
+      .limit(10);
 
-    return res.rows.map(row => transformDbRowToEntry(row)) as EntryWithReferences[];
+    // Get tags for all matched entries
+    const entryIds = entryRows.map(row => row.id);
+    const tagMap = new Map<number, Tag[]>();
+    
+    if (entryIds.length > 0) {
+      const tagRows = await db
+        .select({
+          entryId: entryTags.entry_id,
+          tagId: tags.id,
+          tagName: tags.name
+        })
+        .from(entryTags)
+        .leftJoin(tags, eq(entryTags.tag_id, tags.id))
+        .where(inArray(entryTags.entry_id, entryIds));
+
+      for (const row of tagRows) {
+        if (row.tagId && row.tagName) {
+          const tagsList = tagMap.get(row.entryId) || [];
+          tagsList.push({ id: String(row.tagId), name: row.tagName });
+          tagMap.set(row.entryId, tagsList);
+        }
+      }
+    }
+
+    // Transform results to EntryWithReferences format
+    return entryRows.map(row => {
+      const base = toAnyEntryBase(row);
+      const withT = withTags(base, tagMap.get(row.id) || []);
+      return withT as EntryWithReferences;
+    });
 
   } catch (error) {
     console.error("Failed to search entries by name:", error);
     throw new Error("Failed to search entries.");
-  } finally {
-    client.release();
   }
 
 }

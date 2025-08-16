@@ -1,9 +1,10 @@
 // src/app/api/import-lexicon/route.ts
 // API route for viewing database schema and sample data.
 
-import { getClient } from '../../../lib/db'; // Adjust path if your db.ts is elsewhere
-import { PoolClient } from 'pg';
+import { db } from '@/drizzle/db';
 import { NextResponse } from 'next/server';
+import { sql } from 'drizzle-orm';
+import { codex } from '@/drizzle/schema';
 
 /**
  * Handles GET requests to display database schema and sample data.
@@ -11,10 +12,7 @@ import { NextResponse } from 'next/server';
  * @returns A JSON response containing database information or an error.
  */
 export async function GET(request: Request) {
-    let client: PoolClient | undefined;
     try {
-        client = await getClient();
-
         const databaseInfo: {
             tables: {
                 name: string;
@@ -25,15 +23,13 @@ export async function GET(request: Request) {
             tables: []
         };
 
-        // 1. Get all table names in the 'public' schema
-        const tablesResult = await client.query(`
-            SELECT tablename
-            FROM pg_catalog.pg_tables
-            WHERE schemaname = 'public';
-        `);
+        // 1. Get all table names from Drizzle schema
+        const schemaTables = Object.values(codex).filter(
+            (table) => typeof table === 'object' && '$name' in table
+        );
 
-        for (const row of tablesResult.rows) {
-            const tableName = row.tablename;
+        for (const table of schemaTables) {
+            const tableName = table.$name;
             const tableInfo: {
                 name: string;
                 columns: { name: string; type: string }[];
@@ -44,26 +40,23 @@ export async function GET(request: Request) {
                 sample_data: []
             };
 
-            // 2. Get column information for each table
-            const columnsResult = await client.query(`
-                SELECT column_name, data_type
-                FROM information_schema.columns
-                WHERE table_schema = 'public' AND table_name = $1
-                ORDER BY ordinal_position;
-            `, [tableName]);
+            // 2. Get column information from Drizzle schema
+            tableInfo.columns = Object.entries(table).map(([key, column]) => {
+                if (column && typeof column === 'object' && '$name' in column) {
+                    const drizzleColumn = column as { $name: string; $dataType: string };
+                    return {
+                        name: drizzleColumn.$name,
+                        type: drizzleColumn.$dataType || 'unknown'
+                    };
+                }
+                return { name: key, type: 'unknown' };
+            }).filter(col => col.type !== 'unknown') as { name: string; type: string }[];
 
-            tableInfo.columns = columnsResult.rows.map(col => ({
-                name: col.column_name,
-                type: col.data_type
-            }));
-
-            // 3. Get sample data for each table (up to 5 rows)
+            // 3. Get sample data using Drizzle
             try {
-                const sampleDataResult = await client.query(`SELECT * FROM "${tableName}" LIMIT 5;`);
-                tableInfo.sample_data = sampleDataResult.rows;
+                const result = await db.select().from(table).limit(5);
+                tableInfo.sample_data = result;
             } catch (dataError: any) {
-                // This catch handles cases where SELECT * might fail on certain table types
-                // or if table is being modified, e.g., view or system table not directly selectable.
                 console.warn(`API Route: Could not fetch sample data for table "${tableName}":`, dataError.message);
                 tableInfo.sample_data = [{ error: `Could not fetch data: ${dataError.message}` }];
             }
@@ -81,9 +74,7 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     } finally {
-        if (client) {
-            client.release();
-        }
+        // No need to release client with Drizzle connection pooling
     }
 }
 

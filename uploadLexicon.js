@@ -18,7 +18,7 @@ const SUBMITTER_EMAIL = "roma@f3nation.com";
 // 🧱 Ensure required tables exist
 async function ensureSchema() {
   const schema = `
-    CREATE TABLE IF NOT EXISTS entries (
+    CREATE TABLE IF NOT EXISTS codex.entries (
       id SERIAL PRIMARY KEY,
       title VARCHAR(255) NOT NULL,
       definition TEXT NOT NULL,
@@ -27,12 +27,12 @@ async function ensureSchema() {
       video_url VARCHAR(255) DEFAULT ''
     );
 
-    CREATE TABLE IF NOT EXISTS tags (
+    CREATE TABLE IF NOT EXISTS codex.tags (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) UNIQUE NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS user_submissions (
+    CREATE TABLE IF NOT EXISTS codex.user_submissions (
       id SERIAL PRIMARY KEY,
       submission_type VARCHAR(50) NOT NULL,
       data JSONB NOT NULL,
@@ -54,7 +54,7 @@ async function ensureSchema() {
 async function insertEntry(title, definition) {
   try {
     const res = await client.query(
-      `INSERT INTO entries (title, definition, type, aliases, video_url)
+      `INSERT INTO codex.entries (title, definition, type, aliases, video_url)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING
        RETURNING id`,
@@ -75,7 +75,7 @@ async function insertEntry(title, definition) {
 async function insertSubmission(payload) {
   try {
     await client.query(
-      `INSERT INTO user_submissions (submission_type, data, submitter_name, submitter_email)
+      `INSERT INTO codex.user_submissions (submission_type, data, submitter_name, submitter_email)
        VALUES ($1, $2, $3, $4)`,
       ["xicon_upload", payload, SUBMITTER_NAME, SUBMITTER_EMAIL]
     );

@@ -46,7 +46,7 @@ To get a copy of this project up and running on your local machine for developme
     ```
 
 3.  **Database Setup:**
-    Create a new PostgreSQL database for this project. Then, create a `.env` file in the root of the project and add your database connection string:
+    Create a new PostgreSQL database for this project. Then, create a `.env.local` file in the root of the project and add your database connection string:
 
     ```
     DATABASE_URL="postgresql://YOUR_DB_USER:YOUR_DB_PASSWORD@YOUR_DB_HOST:YOUR_DB_PORT/YOUR_DB_NAME"
@@ -60,7 +60,7 @@ To get a copy of this project up and running on your local machine for developme
     Apply the database schema and initial data by running the following command.
 
     ```
-    npm run db:migrate:up
+    npm run db:migrate
 
 
     ```
@@ -68,7 +68,7 @@ To get a copy of this project up and running on your local machine for developme
 5.  Seed your database (if applicable):
 
     ```
-    npm run seed
+    npm run db:seed
 
     ```
 

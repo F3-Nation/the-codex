@@ -79,6 +79,25 @@ export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageCo
     });
   }, [initialEntries, searchTerm, filterLetter]);
 
+  const handleExportLatest = () => {
+    try {
+      const params = new URLSearchParams({
+        searchTerm,
+        filterLetter,
+      });
+      const url = `/api/lexicon/export?${params.toString()}`;
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'lexicon-export.csv';
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('❌ Export CSV Error:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-8">
       {/* Sidebar for Filters */}
@@ -123,7 +142,7 @@ export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageCo
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search Lexicon..." />
           <Button
-            onClick={() => exportToCSV(filteredEntries.filter((entry): entry is LexiconEntry => entry.type === 'lexicon'))}
+            onClick={handleExportLatest}
             variant="outline"
             className="w-full sm:w-auto"
           >

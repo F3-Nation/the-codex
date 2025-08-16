@@ -1,10 +1,10 @@
 // src/app/api/import-lexicon/route.ts
-import { initialExiconEntries } from '../../../lib/initalEntries'; // Only import exicon entries now
-import { createSubmissionInDatabase, applyApprovedSubmissionToDatabase, fetchAllEntries, } from '../../../lib/api';
-import { getClient } from '../../../lib/db';
+import { initialExiconEntries } from '@/lib/initalEntries'; // Only import exicon entries now
+import { createSubmissionInDatabase, applyApprovedSubmissionToDatabase, fetchAllEntries, } from '@/lib/api';
+import { db } from '@/drizzle/db';
 import { NextResponse } from 'next/server';
-import type { NewEntrySuggestionData, UserSubmissionBase } from '../../../lib/types';
-import { PoolClient } from 'pg';
+import type { NewEntrySuggestionData, UserSubmissionBase } from '@/lib/types';
+import { entries, entryTags, userSubmissions } from '@/drizzle/schema';
 
 // --- NEW IMPORTS FOR CSV HANDLING ---
 import * as fs from 'fs';
@@ -81,18 +81,15 @@ async function readCsvFile(filePath: string): Promise<CsvRow[]> {
 
 
 export async function POST() {
-    let client: PoolClient | null = null;
     try {
-        client = await getClient();
-        console.log('Database client acquired.');
-
-        // --- Wipe existing data before importing ---
         console.log('Detected request to wipe and re-import. Deleting existing data...');
-        await client.query('DELETE FROM entry_tags;');
-        await client.query('DELETE FROM entries;');
-        await client.query('DELETE FROM user_submissions;');
+        
+        // --- Wipe existing data before importing ---
+        await db.delete(entryTags);
+        await db.delete(entries);
+        await db.delete(userSubmissions);
         // Optional: If you also want to completely reset your tags table, uncomment this:
-        // await client.query('DELETE FROM tags;');
+        // await db.delete(tags);
         console.log('Existing data deleted.');
         // --- End wipe ---
 
@@ -136,12 +133,12 @@ export async function POST() {
         // Combine CSV-derived lexicon entries with hardcoded exicon entries
         const allInitialSubmissions: UserSubmissionBase<NewEntrySuggestionData>[] = [
             ...csvLexiconSubmissions, // Lexicon from CSV
-            ...initialExiconEntries.map(entry => ({ // Exicon from hardcoded
+            ...initialExiconEntries.map((entry) => ({ // Exicon from hardcoded
                 submissionType: 'new' as const,
                 data: {
                     name: entry.name,
                     description: entry.description,
-                    aliases: entry.aliases!.map(a => a.name),
+                    aliases: entry.aliases!.map((a) => a.name),
                     entryType: entry.type,
                     tags: entry.tags.map(t => t.name),
                     videoLink: entry.videoLink || '',
@@ -176,9 +173,6 @@ export async function POST() {
             { status: 500 }
         );
     } finally {
-        if (client) {
-            client.release();
-            console.log('Database client released.');
-        }
+        console.log('Database operations complete.');
     }
 }

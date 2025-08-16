@@ -17,7 +17,8 @@ const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
 };
 
 export default async function LexiconPage() {
-  const initialEntries = (await fetchAllEntries()) as LexiconEntry[];
+  const allEntries = await fetchAllEntries();
+  const initialEntries = allEntries.filter((e): e is LexiconEntry => e.type === 'lexicon');
 
   let enrichedEntries: LexiconEntry[] = initialEntries;
 

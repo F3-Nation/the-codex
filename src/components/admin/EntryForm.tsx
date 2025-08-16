@@ -26,6 +26,7 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [videoLink, setVideoLink] = useState('');
   const [references, setReferences] = useState<ReferencedEntry[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (entryToEdit) {
@@ -63,35 +64,41 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
     }
   }, [entryToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    const commonData = {
-      id:
-        entryToEdit?.id ||
-        `${type}-${Date.now()}-${name.toLowerCase().replace(/s+/g, '-')}`,
-      name,
-      description,
-      aliases: aliases.filter((alias) => alias.name.trim() !== ''),
-      references: references, // Include parsed references in the submission data
-    };
+    try {
+      const commonData = {
+        id:
+          entryToEdit?.id ||
+          `${type}-${Date.now()}-${name.toLowerCase().replace(/s+/g, '-')}`,
+        name,
+        description,
+        aliases: aliases.filter((alias) => alias.name.trim() !== ''),
+        references: references, // Include parsed references in the submission data
+      };
 
-    const entryData: AnyEntry =
-      type === 'exicon'
-        ? {
-            ...commonData,
-            type: 'exicon',
-            tags: selectedTagIds
-              .map((id) => allTags.find((tag) => tag.id === id))
-              .filter((t): t is Tag => !!t),
-            videoLink: videoLink || undefined,
-          } as ExiconEntry
-        : {
-            ...commonData,
-            type: 'lexicon',
-          } as LexiconEntry;
+      const entryData: AnyEntry =
+        type === 'exicon'
+          ? {
+              ...commonData,
+              type: 'exicon',
+              tags: selectedTagIds
+                .map((id) => allTags.find((tag) => tag.id === id))
+                .filter((t): t is Tag => !!t),
+              videoLink: videoLink || undefined,
+            } as ExiconEntry
+          : {
+              ...commonData,
+              type: 'lexicon',
+            } as LexiconEntry;
 
-    onFormSubmit(entryData);
+      await Promise.resolve(onFormSubmit(entryData));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddAlias = () => {
@@ -283,8 +290,8 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags }: EntryFormProps
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full">
-            {entryToEdit ? 'Save Changes' : 'Create Entry'}
+          <Button type="submit" className="w-full" disabled={isSubmitting} aria-busy={isSubmitting}>
+            {entryToEdit ? (isSubmitting ? 'Saving...' : 'Save Changes') : (isSubmitting ? 'Creating...' : 'Create Entry')}
           </Button>
         </CardFooter>
       </form>

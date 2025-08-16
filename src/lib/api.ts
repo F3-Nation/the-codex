@@ -1,244 +1,368 @@
 // src/lib/api.ts
 import "server-only";
+import { db } from "@/drizzle/db";
+import {
+  entries,
+  tags as tagsTable,
+  entryTags,
+  entryReferences,
+  userSubmissions as userSubmissionsTable,
+} from "@/drizzle/schema";
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  sql,
+} from "drizzle-orm";
 import type {
-  AnyEntry, ExiconEntry, Tag,
-  NewEntrySuggestionData, EditEntrySuggestionData, UserSubmissionBase, Alias,
-  ReferencedEntry, NewUserSubmission
-} from "./types";
-import { getClient } from "./db";
-import { PoolClient } from "pg";
+  AnyEntry,
+  ExiconEntry,
+  Tag,
+  NewEntrySuggestionData,
+  EditEntrySuggestionData,
+  UserSubmissionBase,
+  Alias,
+  ReferencedEntry,
+  EntryWithReferences,
+  NewUserSubmission,
+} from "@/lib/types";
 
+// --- Utilities & Mappers ---
 
-export type EntryWithReferences = AnyEntry & {
-  references?: ReferencedEntry[];
-  referencedBy?: ReferencedEntry[];
-  resolvedMentionsData?: Record<string, AnyEntry>;
-};
+type DBLike = typeof db;
 
-
-
-
-export const transformDbRowToEntry = (row: any): EntryWithReferences => {
-  if (!row) {
-    console.error('transformDbRowToEntry received undefined row');
-    throw new Error('Cannot transform undefined database row to entry');
+function toAliasArray(raw: unknown): Alias[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((a) => {
+        if (!a) return null;
+        if (typeof a === "string") return { name: a };
+        if (typeof a === "object" && "name" in (a as any)) {
+          const n = (a as any).name;
+          if (typeof n === "string" && n.trim() !== "") return { name: n };
+        }
+        return null;
+      })
+      .filter(Boolean) as Alias[];
   }
+  // If stored as object accidentally
+  if (typeof raw === "object" && raw !== null) {
+    const maybe = raw as any;
+    if (Array.isArray(maybe.aliases)) return toAliasArray(maybe.aliases);
+  }
+  return [];
+}
 
-
-
-  let mentionedEntries: string[] = [];
-  if (row.mentioned_entries !== undefined && row.mentioned_entries !== null) {
-    try {
-      if (typeof row.mentioned_entries === 'string') {
-        mentionedEntries = JSON.parse(row.mentioned_entries);
-      } else if (Array.isArray(row.mentioned_entries)) {
-        mentionedEntries = row.mentioned_entries;
-      } else {
-        console.warn('mentioned_entries has unexpected type for entry:', row.id, typeof row.mentioned_entries, row.mentioned_entries);
-        mentionedEntries = [];
-      }
-
-      if (!Array.isArray(mentionedEntries)) {
-        console.warn('mentioned_entries is not an array for entry:', row.id, mentionedEntries);
-        mentionedEntries = [];
-      }
-    } catch (error) {
-      console.error('Error parsing mentioned_entries for entry:', row.id, error);
-      mentionedEntries = [];
+function toMentionedEntries(raw: unknown): string[] {
+  if (!raw) return [];
+  try {
+    if (Array.isArray(raw)) {
+      return raw.map((v) => (typeof v === "number" ? String(v) : String(v)));
     }
+    if (typeof raw === "string") {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return arr.map((v) => String(v));
+    }
+  } catch {
+    // ignore parse errors, return []
   }
+  return [];
+}
 
+export function toAnyEntryBase(row: {
+  id: number;
+  title: string;
+  definition: string;
+  type: "exicon" | "lexicon" | string;
+  aliases: unknown;
+  video_link: string | null;
+  mentioned_entries: unknown;
+}): Omit<AnyEntry, "tags"> & Partial<Pick<ExiconEntry, "tags">> {
   return {
-    id: row.id,
+    id: String(row.id),
     name: row.title,
     description: row.definition,
-    type: row.type,
-    aliases: row.aliases || [],
-    tags: row.tags || [],
-    videoLink: row.video_link,
-    mentionedEntries: mentionedEntries,
-    referencedBy: row.referenced_by_data ? row.referenced_by_data.map((ref: any) => ref.id) : []
+    type: row.type as "exicon" | "lexicon",
+    aliases: toAliasArray(row.aliases),
+    videoLink: row.video_link ?? undefined,
+    mentionedEntries: toMentionedEntries(row.mentioned_entries),
+  } as any;
+}
+
+export function withTags<T extends Omit<AnyEntry, "tags">>(
+  entry: T,
+  tags: Tag[],
+): AnyEntry {
+  if (entry.type === "exicon") {
+    return {
+      ...(entry as any),
+      tags,
+    } as ExiconEntry;
+  }
+  return entry as AnyEntry;
+}
+
+function toReferencedEntry(row: {
+  id: number;
+  title: string;
+  definition: string;
+  type: "exicon" | "lexicon" | string;
+}): ReferencedEntry {
+  return {
+    id: String(row.id),
+    name: row.title,
+    description: row.definition,
+    type: row.type as "exicon" | "lexicon",
   };
-};
+}
+
+async function getEntryTagsMapForIds(
+  ids: number[],
+  cx: DBLike = db,
+): Promise<Map<number, Tag[]>> {
+  if (ids.length === 0) return new Map();
+  const tagRows = await cx
+    .select({
+      entryId: entryTags.entry_id,
+      tagId: tagsTable.id,
+      tagName: tagsTable.name,
+    })
+    .from(entryTags)
+    .leftJoin(tagsTable, eq(entryTags.tag_id, tagsTable.id))
+    .where(inArray(entryTags.entry_id, ids));
+
+  const map = new Map<number, Tag[]>();
+  for (const r of tagRows) {
+    const list = map.get(r.entryId) ?? [];
+    if (r.tagId != null && r.tagName != null) {
+      list.push({ id: String(r.tagId), name: r.tagName });
+    }
+    map.set(r.entryId, list);
+  }
+  return map;
+}
+
+async function getOutgoingReferencesMap(
+  ids: number[],
+  cx: DBLike = db,
+): Promise<Map<number, ReferencedEntry[]>> {
+  if (ids.length === 0) return new Map();
+  const rows = await cx
+    .select({
+      sourceId: entryReferences.source_entry_id,
+      id: entries.id,
+      title: entries.title,
+      definition: entries.definition,
+      type: entries.type,
+    })
+    .from(entryReferences)
+    .innerJoin(entries, eq(entryReferences.target_entry_id, entries.id))
+    .where(inArray(entryReferences.source_entry_id, ids));
+
+  const map = new Map<number, ReferencedEntry[]>();
+  for (const r of rows) {
+    const list = map.get(r.sourceId) ?? [];
+    list.push(toReferencedEntry(r));
+    map.set(r.sourceId, list);
+  }
+  return map;
+}
+
+async function getIncomingReferencesMap(
+  ids: number[],
+  cx: DBLike = db,
+): Promise<Map<number, ReferencedEntry[]>> {
+  if (ids.length === 0) return new Map();
+  const rows = await cx
+    .select({
+      targetId: entryReferences.target_entry_id,
+      id: entries.id,
+      title: entries.title,
+      definition: entries.definition,
+      type: entries.type,
+    })
+    .from(entryReferences)
+    .innerJoin(entries, eq(entryReferences.source_entry_id, entries.id))
+    .where(inArray(entryReferences.target_entry_id, ids));
+
+  const map = new Map<number, ReferencedEntry[]>();
+  for (const r of rows) {
+    const list = map.get(r.targetId) ?? [];
+    list.push(toReferencedEntry(r));
+    map.set(r.targetId, list);
+  }
+  return map;
+}
+
+async function getEntriesByIdsWithTags(
+  ids: number[],
+  cx: DBLike = db,
+): Promise<Record<string, AnyEntry>> {
+  if (ids.length === 0) return {};
+  const rows = await cx
+    .select()
+    .from(entries)
+    .where(inArray(entries.id, ids));
+  const tagMap = await getEntryTagsMapForIds(ids, cx);
+
+  const out: Record<string, AnyEntry> = {};
+  for (const row of rows) {
+    const base = toAnyEntryBase(row);
+    const withT = withTags(base, tagMap.get(row.id) ?? []);
+    out[String(row.id)] = withT;
+    out[row.title] = withT;
+
+    // index by alias names too
+    if (withT.aliases && Array.isArray(withT.aliases)) {
+      for (const alias of withT.aliases) {
+        if (alias && alias.name) out[alias.name] = withT;
+      }
+    }
+  }
+  return out;
+}
 
 // --- Core Reference Handling Functions ---
 
-/**
-* Finds the ID of an entry by its name. Case-insensitive search.
-* @param client The database client.
-* @param entryName The name of the entry to find.
-* @returns The entry ID if found, otherwise null.
-*/
-export async function getEntryIdByName(name: string): Promise<string | null> {
-  const client = await getClient();
-  try {
-
-    const res = await client.query('SELECT id::text, title FROM entries WHERE LOWER(title) = LOWER($1)', [name]);
-    if (res.rows.length > 0) {
-
-      return res.rows[0].id;
-    }
-
-    return null;
-  } finally {
-    if (client) client.release();
-  }
+export async function getEntryIdByName(
+  name: string,
+  cx: DBLike = db,
+): Promise<string | null> {
+  const result = await cx
+    .select({ id: entries.id })
+    .from(entries)
+    .where(sql`LOWER(${entries.title}) = LOWER(${name})`)
+    .limit(1);
+  return result[0]?.id != null ? String(result[0].id) : null;
 }
 
+export async function insertEntryReference(
+  sourceEntryId: string,
+  targetEntryId: string,
+  cx: DBLike = db,
+) {
+  if (sourceEntryId === targetEntryId) return;
+  const src = parseInt(sourceEntryId, 10);
+  const tgt = parseInt(targetEntryId, 10);
+  if (!Number.isFinite(src) || !Number.isFinite(tgt)) return;
 
-/**
-* Inserts a reference between two entries in the database.
-* @param client The database client.
-* @param referringEntryId The ID of the entry that contains the reference.
-* @param referencedEntryId The ID of the entry being referenced.
-*/
-export async function insertEntryReference(sourceEntryId: string, targetEntryId: string) {
-  if (sourceEntryId === targetEntryId) {
-    console.warn(`Attempted to create a self-reference for entry ID: ${sourceEntryId}. Skipping.`);
-    return;
-  }
-
-  const client = await getClient();
-  try {
-
-    await client.query(
-      `INSERT INTO entry_references (source_entry_id, target_entry_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
-      [sourceEntryId, targetEntryId]
-    );
-  } finally {
-    if (client) client.release();
-  }
+  await cx
+    .insert(entryReferences)
+    .values({ source_entry_id: src, target_entry_id: tgt })
+    .onConflictDoNothing();
 }
 
 export const deleteTagFromDatabase = async (id: string): Promise<void> => {
-  const client = await getClient();
   try {
-    const res = await client.query('DELETE FROM tags WHERE id = $1', [id]);
-    if (res.rowCount === 0) {
+    const result = await db
+      .delete(tagsTable)
+      .where(eq(tagsTable.id, parseInt(id, 10)))
+      .returning({ deletedId: tagsTable.id });
+    if (result.length === 0) {
       throw new Error(`Tag with ID ${id} not found.`);
     }
   } catch (err) {
     console.error(`Error deleting tag with ID ${id}:`, err);
     throw err;
-  } finally {
-    if (client) client.release();
   }
 };
 
-
-/**
-* Deletes all references where a given entry is the referrer.
-* @param client The database client.
-* @param referringEntryId The ID of the entry whose references should be cleared.
-*/
-export async function deleteReferencesForEntry(client: PoolClient, sourceEntryId: string): Promise<void> {
+export async function deleteReferencesForEntry(
+  sourceEntryId: string,
+  cx: DBLike = db,
+): Promise<void> {
   try {
-    await client.query('DELETE FROM entry_references WHERE source_entry_id = $1', [sourceEntryId]);
-
+    const src = parseInt(sourceEntryId, 10);
+    if (!Number.isFinite(src)) return;
+    await cx.delete(entryReferences).where(eq(entryReferences.source_entry_id, src));
   } catch (error) {
-    console.error(`Error deleting references for entry ID ${sourceEntryId}:`, (error as Error).message);
+    console.error(
+      `Error deleting references for entry ID ${sourceEntryId}:`,
+      (error as Error).message,
+    );
     throw error;
   }
 }
 
-export async function deleteEntryReferences(sourceEntryId: string) {
-  const client = await getClient();
-  try {
-
-    await client.query('DELETE FROM entry_references WHERE source_entry_id = $1', [sourceEntryId]);
-  } finally {
-    if (client) client.release();
-  }
+export async function deleteEntryReferences(
+  sourceEntryId: string,
+  cx: DBLike = db,
+) {
+  const src = parseInt(sourceEntryId, 10);
+  if (!Number.isFinite(src)) return;
+  await cx.delete(entryReferences).where(eq(entryReferences.source_entry_id, src));
 }
 
 /**
-* Processes a description string, extracts @references, resolves them, and saves them to the database.
-* This function handles both creating new references and updating existing ones (by clearing and re-adding).
-* @param client The database client.
-* @param referringEntryId The ID of the entry whose description is being processed.
-* @param description The full description string from which to extract references.
-*/
+ * Processes a description string, extracts @references, resolves them, and saves them to the database.
+ * This function handles both creating new references and updating existing ones (by clearing and re-adding).
+ */
 export async function processAndSaveReferences(
   entryId: string,
   description: string,
   providedMentionedEntries?: string[],
-  client?: PoolClient
+  cx: DBLike = db,
 ): Promise<string[]> {
-  const dbClient = client || await getClient();
-  const shouldReleaseClient = !client;
-
   try {
-
-
     let mentionedNames: string[] = [];
-    let resolvedReferences: { name: string, id: string }[] = [];
+    let resolvedReferences: { name: string; id: string }[] = [];
     let mentionedEntryIds: string[] = [];
 
     if (providedMentionedEntries && providedMentionedEntries.length > 0) {
+      const intIds = providedMentionedEntries
+        .map((s) => parseInt(s, 10))
+        .filter((n) => Number.isFinite(n));
 
+      if (intIds.length > 0) {
+        const entriesResult = await cx
+          .select({ id: entries.id, title: entries.title })
+          .from(entries)
+          .where(inArray(entries.id, intIds));
+        const idToTitle = new Map(entriesResult.map((r) => [String(r.id), r.title]));
+        resolvedReferences = providedMentionedEntries
+          .map((id) => {
+            const title = idToTitle.get(id);
+            return title ? { name: title, id } : null;
+          })
+          .filter(Boolean) as { name: string; id: string }[];
 
-      const res = await dbClient.query(
-        'SELECT id, title FROM entries WHERE id = ANY($1::text[])',
-        [providedMentionedEntries]
-      );
-
-
-      const idToTitleMap = new Map(res.rows.map(row => [row.id, row.title]));
-
-
-      resolvedReferences = providedMentionedEntries
-        .map(id => {
-
-          const title = idToTitleMap.get(id);
-
-          return title ? { name: title, id } : null;
-        })
-        .filter(Boolean) as { name: string, id: string }[];
-
-      mentionedNames = resolvedReferences.map(ref => ref.name);
-      mentionedEntryIds = resolvedReferences.map(ref => ref.id);
-
-
-      if (resolvedReferences.length !== providedMentionedEntries.length) {
-        console.warn(`DEBUG: Some provided mentionedEntries not found in entries table:`, {
-          provided: providedMentionedEntries,
-          resolved: resolvedReferences.map(ref => ref.id)
-        });
+        mentionedNames = resolvedReferences.map((r) => r.name);
+        mentionedEntryIds = resolvedReferences.map((r) => r.id);
       }
     } else {
-      const mentionRegex = /@([A-Za-z0-9][A-Za-z0-9\s_.-]*[A-Za-z0-9])(?=\s|$|[,.!?;:])/g;
-      mentionedNames = [...new Set(
-        Array.from(description.matchAll(mentionRegex)).map(match => match[1].trim())
-      )];
+      const mentionRegex =
+        /@([A-Za-z0-9][A-Za-z0-9\s_.-]*[A-Za-z0-9])(?=\s|$|[,.!?;:])/g;
+      const rawNames = Array.from(description.matchAll(mentionRegex)).map((m) =>
+        m[1].trim(),
+      );
+      // unique
+      mentionedNames = [...new Set(rawNames)];
 
+      const resolved = await Promise.all(
+        mentionedNames.map(async (n) => {
+          const id = await getEntryIdByName(n, cx);
+          return id ? { name: n, id } : null;
+        }),
+      );
 
-      const resolvedReferencesPromises = mentionedNames.map(async (name) => {
-        const targetId = await getEntryIdByName(name);
-        return targetId ? { name, id: targetId } : null;
-      });
-
-      resolvedReferences = (await Promise.all(resolvedReferencesPromises)).filter(Boolean) as { name: string, id: string }[];
-      mentionedEntryIds = resolvedReferences.map(ref => ref.id);
-
+      resolvedReferences = resolved.filter(Boolean) as { name: string; id: string }[];
+      mentionedEntryIds = resolvedReferences.map((r) => r.id);
     }
 
+    // Persist mentioned_entries (as an array of string ids)
+    const idInt = parseInt(entryId, 10);
+    await cx
+      .update(entries)
+      .set({ mentioned_entries: mentionedEntryIds })
+      .where(eq(entries.id, idInt));
 
-
-
-    await dbClient.query(
-      'UPDATE entries SET mentioned_entries = $1 WHERE id = $2',
-      [JSON.stringify(mentionedEntryIds), entryId]
-    );
-
-
-
-    await deleteEntryReferences(entryId);
-
+    // Recreate entry_references
+    await deleteEntryReferences(entryId, cx);
     for (const ref of resolvedReferences) {
       if (ref.id !== entryId) {
-        await insertEntryReference(entryId, ref.id);
+        await insertEntryReference(entryId, ref.id, cx);
       }
     }
 
@@ -246,837 +370,613 @@ export async function processAndSaveReferences(
   } catch (error) {
     console.error(`Error processing and saving references for entry ${entryId}:`, error);
     throw error;
-  } finally {
-    if (shouldReleaseClient && dbClient) {
-      dbClient.release();
-    }
   }
 }
-
 
 // --- Entry Management Functions ---
 
 export const fetchAllEntries = async (): Promise<EntryWithReferences[]> => {
-  const client = await getClient();
   try {
-    const res = await client.query(`
-      SELECT
-        e.id,
-        e.title,
-        e.definition,
-        e.type,
-        e.aliases,
-        e.video_link,
-        e.mentioned_entries,
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object('id', t.id, 'name', t.name)
-            )
-            FROM tags t
-            JOIN entry_tags et ON t.id = et.tag_id
-            WHERE et.entry_id = e.id
-          ),
-          '[]'::json
-        ) AS tags,
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', r_e.id,
-                'name', r_e.title,
-                'description', r_e.definition,
-                'type', r_e.type
-              )
-            )
-            FROM entries r_e
-            JOIN entry_references er ON r_e.id = er.target_entry_id
-            WHERE er.source_entry_id = e.id
-          ),
-          '[]'::json
-        ) AS references_data,
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', ref_e.id,
-                'name', ref_e.title,
-                'description', ref_e.definition,
-                'type', ref_e.type
-              )
-            )
-            FROM entries ref_e
-            JOIN entry_references eref ON ref_e.id = eref.source_entry_id
-            WHERE eref.target_entry_id = e.id
-          ),
-          '[]'::json
-        ) AS referenced_by_data
-      FROM entries e
-      ORDER BY e.title ASC
-    `);
+    const rows = await db.select().from(entries).orderBy(asc(entries.title));
+    const ids = rows.map((r) => r.id);
 
-    const transformedEntries = res.rows.map(transformDbRowToEntry);
+    const tagMap = await getEntryTagsMapForIds(ids, db);
+    const outgoingMap = await getOutgoingReferencesMap(ids, db);
+    const incomingMap = await getIncomingReferencesMap(ids, db);
 
-    const entriesWithResolvedMentions = await Promise.all(
-      transformedEntries.map(async (entry) => {
-        if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
-          const mentionedEntriesRes = await client.query(
-            `SELECT id, title, definition, type, aliases, video_link,
-             COALESCE(
-               (
-                 SELECT json_agg(
-                   json_build_object('id', t.id, 'name', t.name)
-                 )
-                 FROM tags t
-                 JOIN entry_tags et ON t.id = et.tag_id
-                 WHERE et.entry_id = entries.id
-               ),
-               '[]'::json
-             ) AS tags
-             FROM entries WHERE id = ANY($1::text[])`,
-            [entry.mentionedEntries]
-          );
+    const result: AnyEntry[] = [];
+    for (const row of rows) {
+      const base = toAnyEntryBase(row);
+      const withT = withTags(base, tagMap.get(row.id) ?? []);
+      const outgoing = outgoingMap.get(row.id) ?? [];
+      const incoming = incomingMap.get(row.id) ?? [];
 
-          const resolvedMentionsData: Record<string, AnyEntry> = {};
-          mentionedEntriesRes.rows.forEach((mentionedRow) => {
-            const mentionedEntry = transformDbRowToEntry(mentionedRow);
-            resolvedMentionsData[mentionedEntry.id] = mentionedEntry;
-            resolvedMentionsData[mentionedEntry.name] = mentionedEntry;
-
-            if (mentionedEntry.aliases) {
-              mentionedEntry.aliases.forEach(alias => {
-                const aliasName = typeof alias === 'string' ? alias : alias.name;
-                resolvedMentionsData[aliasName] = mentionedEntry;
-              });
-            }
-          });
-
-          return {
-            ...entry,
-            resolvedMentionsData
-          };
+      // Resolve mentioned entries data for this entry
+      let resolvedMentionsData: Record<string, AnyEntry> | undefined = undefined;
+      const mentioned = withT.mentionedEntries ?? [];
+      if (mentioned.length > 0) {
+        const mentionedIntIds = mentioned
+          .map((s) => parseInt(s, 10))
+          .filter((n) => Number.isFinite(n));
+        const resolved = await getEntriesByIdsWithTags(mentionedIntIds, db);
+        if (Object.keys(resolved).length > 0) {
+          resolvedMentionsData = resolved;
         }
+      }
 
-        return entry;
-      })
-    );
+      result.push({
+        ...withT,
+        references: outgoing,
+        referencedBy: incoming,
+        ...(resolvedMentionsData ? { resolvedMentionsData } : {}),
+      } as EntryWithReferences);
+    }
 
-    return entriesWithResolvedMentions;
+    return result;
   } catch (err: any) {
-    const errorMessage = err.message ? String(err.message).toLowerCase() : '';
+    const errorMessage = err.message ? String(err.message).toLowerCase() : "";
     if (errorMessage.includes('relation "entries" does not exist')) {
       const detailedErrorMsg =
         'CRITICAL SERVER LOG: The "entries" table was not found. This means migrations have likely not run or failed. \n1. TRIPLE-CHECK your DATABASE_URL in your .env file. \n2. Ensure PostgreSQL server is running. \n3. Run `npm run db:migrate:up` and WATCH FOR ERRORS in the terminal. \n4. Verify `pgmigrations` table in your database. Error details: ' +
         err.stack;
       console.error(detailedErrorMsg);
       throw new Error(
-        'DATABASE SETUP ERROR: The "entries" table is MISSING. This is NOT a code bug in this function. FIX: 1. Verify DATABASE_URL in .env. 2. Run `npm run db:migrate:up` AND CHECK ITS OUTPUT FOR ERRORS. See server logs for more details.'
+        'DATABASE SETUP ERROR: The "entries" table is MISSING. This is NOT a code bug in this function. FIX: 1. Verify DATABASE_URL in .env. 2. Run `npm run db:migrate:up` AND CHECK ITS OUTPUT FOR ERRORS. See server logs for more details.',
       );
     }
-    console.error('Error fetching all entries from database:', err);
+    console.error("Error fetching all entries from database:", err);
     throw err;
-  } finally {
-    if (client) client.release();
   }
 };
 
-
 export const getEntryByIdFromDatabase = async (
-  id: string | number
+  id: string | number,
+  cx: DBLike = db,
 ): Promise<EntryWithReferences | null> => {
-  const client = await getClient();
+  const intId = parseInt(String(id), 10);
+  if (!Number.isFinite(intId)) return null;
+
   try {
-    const queryId = String(id);
+    const rows = await cx.select().from(entries).where(eq(entries.id, intId)).limit(1);
+    if (rows.length === 0) return null;
 
-    const res = await client.query(`
-      SELECT
-        e.id,
-        e.title,
-        e.definition,
-        e.type,
-        e.aliases,
-        e.video_link,
-        e.mentioned_entries,
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object('id', t.id, 'name', t.name)
-            )
-            FROM tags t
-            JOIN entry_tags et ON t.id = et.tag_id
-            WHERE et.entry_id = e.id
-          ),
-          '[]'::json
-        ) AS tags,
+    const row = rows[0];
+    const base = toAnyEntryBase(row);
 
-        -- entries that this entry references (outgoing)
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', r_e.id,
-                'name', r_e.title,
-                'description', r_e.definition,
-                'type', r_e.type
-              )
-            )
-            FROM entries r_e
-            JOIN entry_references er ON r_e.id = er.target_entry_id
-            WHERE er.source_entry_id = e.id
-          ),
-          '[]'::json
-        ) AS references_data,
+    // tags
+    const tagMap = await getEntryTagsMapForIds([intId], cx);
+    const withT = withTags(base, tagMap.get(intId) ?? []);
 
-        -- entries that reference this entry (incoming)
-        COALESCE(
-          (
-            SELECT json_agg(
-              json_build_object(
-                'id', ref_e.id,
-                'name', ref_e.title,
-                'description', ref_e.definition,
-                'type', ref_e.type
-              )
-            )
-            FROM entries ref_e
-            JOIN entry_references eref ON ref_e.id = eref.source_entry_id
-            WHERE eref.target_entry_id = e.id
-          ),
-          '[]'::json
-        ) AS referenced_by_data
+    // outgoing and incoming references
+    const outgoingMap = await getOutgoingReferencesMap([intId], cx);
+    const incomingMap = await getIncomingReferencesMap([intId], cx);
 
-      FROM entries e
-      WHERE e.id = $1
-    `, [queryId]);
-
-    if (res.rows.length === 0) {
-      return null;
+    let resolvedMentionsData: Record<string, AnyEntry> | undefined = undefined;
+    const mentioned = withT.mentionedEntries ?? [];
+    if (mentioned.length > 0) {
+      const mentionedIntIds = mentioned
+        .map((s) => parseInt(s, 10))
+        .filter((n) => Number.isFinite(n));
+      const resolved = await getEntriesByIdsWithTags(mentionedIntIds, cx);
+      if (Object.keys(resolved).length > 0) {
+        resolvedMentionsData = resolved;
+      }
     }
 
-    const entry = transformDbRowToEntry(res.rows[0]);
-
-    if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
-      const mentionedEntriesRes = await client.query(
-        `SELECT id, title, definition, type, aliases, video_link,
-         COALESCE(
-           (
-             SELECT json_agg(
-               json_build_object('id', t.id, 'name', t.name)
-             )
-             FROM tags t
-             JOIN entry_tags et ON t.id = et.tag_id
-             WHERE et.entry_id = entries.id
-           ),
-           '[]'::json
-         ) AS tags
-         FROM entries WHERE id = ANY($1::text[])`,
-        [entry.mentionedEntries]
-      );
-
-      const resolvedMentionsData: Record<string, AnyEntry> = {};
-      mentionedEntriesRes.rows.forEach((mentionedRow) => {
-        const mentionedEntry = transformDbRowToEntry(mentionedRow);
-        resolvedMentionsData[mentionedEntry.id] = mentionedEntry;
-        resolvedMentionsData[mentionedEntry.name] = mentionedEntry;
-
-        if (mentionedEntry.aliases) {
-          mentionedEntry.aliases.forEach(alias => {
-            const aliasName = typeof alias === 'string' ? alias : alias.name;
-            resolvedMentionsData[aliasName] = mentionedEntry;
-          });
-        }
-      });
-
-      return {
-        ...entry,
-        resolvedMentionsData
-      };
-    }
-
-    return entry;
+    return {
+      ...withT,
+      references: outgoingMap.get(intId) ?? [],
+      referencedBy: incomingMap.get(intId) ?? [],
+      ...(resolvedMentionsData ? { resolvedMentionsData } : {}),
+    };
   } catch (err) {
     console.error(`Error fetching entry with ID ${id}:`, err);
     throw err;
-  } finally {
-    client.release();
   }
 };
 
+export const updateEntryInDatabase = async (
+  entry: AnyEntry,
+): Promise<AnyEntry> => {
+  return await db.transaction(async (tx) => {
+    const { id, name, description, type } = entry;
+    const intId = parseInt(String(id), 10);
+    if (!Number.isFinite(intId)) {
+      throw new Error(`Invalid entry id: ${id}`);
+    }
 
-
-export const updateEntryInDatabase = async (entry: AnyEntry): Promise<EntryWithReferences> => {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
-
-    const { id, name, description, type, mentionedEntries } = entry;
-    const videoLink = (type === 'exicon') ? (entry as ExiconEntry).videoLink || null : null;
+    const videoLink =
+      type === "exicon" ? (entry as ExiconEntry).videoLink ?? null : null;
 
     const aliasesToStore = Array.isArray(entry.aliases)
-      ? entry.aliases.map(alias => (typeof alias === 'string' ? { name: alias } : alias))
+      ? entry.aliases
+          .map((a) => (typeof a === "string" ? { name: a } : a))
+          .filter((a) => a && a.name && a.name.trim() !== "")
       : [];
-    const aliasesJson = JSON.stringify(aliasesToStore.filter(a => a.name.trim() !== ''));
 
-    await client.query(
-      'UPDATE entries SET title = $1, definition = $2, type = $3, aliases = $4, video_link = $5, updated_at = NOW(), mentioned_entries = $6 WHERE id = $7',
-      [name, description, type, aliasesJson, videoLink, '[]', id]
-    );
+    await tx
+      .update(entries)
+      .set({
+        title: name,
+        definition: description,
+        type,
+        aliases: aliasesToStore,
+        video_link: videoLink,
+        updated_at: sql`NOW()`,
+        // temporarily clear mentioned entries; process again below
+        mentioned_entries: [],
+      })
+      .where(eq(entries.id, intId));
 
-    if (type === 'exicon') {
-      await client.query('DELETE FROM entry_tags WHERE entry_id = $1', [id]);
-      const tags = (entry as ExiconEntry).tags;
-      const tagNames = tags.map(t => t.name);
+    if (type === "exicon") {
+      // replace tag associations
+      await tx.delete(entryTags).where(eq(entryTags.entry_id, intId));
 
+      const tagNames = (entry as ExiconEntry).tags?.map((t) => t.name) ?? [];
       if (tagNames.length > 0) {
-        const ensuredTagsWithIds = await ensureTagsExist(client, tagNames);
-        const tagIds = ensuredTagsWithIds.map(t => t.id);
+        const ensured = await ensureTagsExist(tagNames, tx);
+        const tagIds = ensured
+          .map((t) => parseInt(t.id, 10))
+          .filter((n) => Number.isFinite(n));
+
         if (tagIds.length > 0) {
-          const entryTagValues = tagIds.map(tagId => `('${id}', '${tagId}')`).join(',');
-          await client.query(`INSERT INTO entry_tags (entry_id, tag_id) VALUES ${entryTagValues} ON CONFLICT (entry_id, tag_id) DO NOTHING`);
+          const values = tagIds.map((tid) => ({
+            entry_id: intId,
+            tag_id: tid,
+          }));
+          await tx.insert(entryTags).values(values).onConflictDoNothing();
         }
       }
     }
 
-    await processAndSaveReferences(id, description, mentionedEntries);
+    const mentionedEntries = entry.mentionedEntries;
+    await processAndSaveReferences(String(intId), description, mentionedEntries, tx);
 
-    await client.query('COMMIT');
-    const updatedEntry = await getEntryByIdFromDatabase(id);
-    if (!updatedEntry) throw new Error(`Failed to retrieve updated entry with ID ${id}`);
-    return updatedEntry;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Error updating entry in database:', err);
-    throw err;
-  } finally {
-    if (client) client.release();
-  }
+    const updated = await getEntryByIdFromDatabase(intId, tx);
+    if (!updated) throw new Error(`Failed to retrieve updated entry with ID ${id}`);
+    return updated;
+  });
 };
 
+export const deleteEntryFromDatabase = async (
+  id: string | number,
+): Promise<void> => {
+  const intId = parseInt(String(id), 10);
+  if (!Number.isFinite(intId)) return;
 
-
-export const deleteEntryFromDatabase = async (id: string | number): Promise<void> => {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
-    const queryId = String(id);
-
-    await client.query('DELETE FROM entry_tags WHERE entry_id = $1', [queryId]);
-
-    await client.query(
-      'DELETE FROM entry_references WHERE source_entry_id = $1 OR target_entry_id = $1',
-      [queryId]
-    );
-
-    const res = await client.query('DELETE FROM entries WHERE id = $1', [queryId]);
-    if (res.rowCount === 0) {
-      console.warn(`Entry with ID ${id} not found for deletion.`);
-    }
-
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(`Error deleting entry with ID ${id} from database:`, err);
-    throw err;
-  } finally {
-    client.release();
-  }
+  await db.transaction(async (tx) => {
+    // with onDelete: "cascade" the references and tags will be removed automatically
+    await tx.delete(entries).where(eq(entries.id, intId));
+  });
 };
 
 export const getAllEntryNamesFromDatabase = async (): Promise<string[]> => {
-  const client = await getClient();
-  try {
-    const res = await client.query('SELECT title FROM entries ORDER BY title ASC');
-    return res.rows.map((row: { title: any; }) => row.title);
-  } catch (err: any) {
-    const errorMessage = err.message ? String(err.message).toLowerCase() : "";
-    if (errorMessage.includes('relation "entries" does not exist')) {
-      const detailedErrorMsg = 'CRITICAL SERVER LOG: The "entries" table was not found when trying to fetch entry names. This means migrations have likely not run or failed. \n1. TRIPLE-CHECK your DATABASE_URL in your .env file. \n2. Ensure PostgreSQL server is running. \n3. Run `npm run db:migrate:up` and WATCH FOR ERRORS in the terminal. \n4. Verify `pgmigrations` table in your database. Error details: ' + err.stack;
-      console.error(detailedErrorMsg);
-      throw new Error('DATABASE SETUP ERROR: The "entries" table is MISSING when fetching names. This is NOT a code bug. FIX: 1. Verify DATABASE_URL in .env. 2. Run `npm run db:migrate:up` AND CHECK ITS OUTPUT FOR ERRORS. See server logs for more details.');
-    }
-    console.error('Error fetching all entry names from database:', err);
-    throw err;
-  } finally {
-    if (client) client.release();
-  }
+  const rows = await db
+    .select({ title: entries.title })
+    .from(entries)
+    .orderBy(asc(entries.title));
+  return rows.map((r) => r.title);
 };
-
 
 // --- Tag Management Functions ---
 
 export const fetchTagsFromDatabase = async (): Promise<Tag[]> => {
-  const client = await getClient();
-  try {
-    const res = await client.query('SELECT id::text, name FROM tags ORDER BY name ASC');
-    return res.rows;
-  } catch (err: any) {
-    const errorMessage = err.message ? String(err.message).toLowerCase() : "";
-    if (errorMessage.includes('relation "tags" does not exist')) {
-      const detailedErrorMsg = 'CRITICAL SERVER LOG: The "tags" table was not found. This means migrations have likely not run or failed. \n1. TRIPLE-CHECK your DATABASE_URL in your .env file. \n2. Ensure PostgreSQL server is running. \n3. Run `npm run db:migrate:up` and WATCH FOR ERRORS in the terminal. \n4. Verify `pgmigrations` table in your database. Error details: ' + err.stack;
-      console.error(detailedErrorMsg);
-      throw new Error('DATABASE SETUP ERROR: The "tags" table is MISSING. This is NOT a code bug in this function. FIX: 1. Verify DATABASE_URL in .env. 2. Run `npm run db:migrate:up` AND CHECK ITS OUTPUT FOR ERRORS. See server logs for more details.');
-    }
-    console.error('Error fetching tags from database:', err);
-    throw err;
-  } finally {
-    if (client) client.release();
-  }
+  const rows = await db
+    .select({ id: tagsTable.id, name: tagsTable.name })
+    .from(tagsTable)
+    .orderBy(asc(tagsTable.name));
+  return rows.map((r) => ({ id: String(r.id), name: r.name }));
 };
 
 export const createTagInDatabase = async (name: string): Promise<Tag> => {
-  const client = await getClient();
   try {
-    const res = await client.query(
-      'INSERT INTO tags (name) VALUES ($1) RETURNING id::text, name',
-      [name]
-    );
-    return res.rows[0];
+    const res = await db
+      .insert(tagsTable)
+      .values({ name })
+      .returning({ id: tagsTable.id, name: tagsTable.name });
+    return { id: String(res[0].id), name: res[0].name };
   } catch (err: any) {
-    if (err.code === '23505') {
+    // unique_violation
+    if (err?.code === "23505") {
       throw new Error(`Tag "${name}" already exists.`);
     }
-    console.error('Error creating tag in database:', err);
+    console.error("Error creating tag in database:", err);
     throw err;
-  } finally {
-    if (client) client.release();
   }
 };
 
-export const updateTagInDatabase = async (id: string, name: string): Promise<Tag> => {
-  const client = await getClient();
+export const updateTagInDatabase = async (
+  id: string,
+  name: string,
+): Promise<Tag> => {
+  const intId = parseInt(id, 10);
+  if (!Number.isFinite(intId)) throw new Error(`Invalid tag id: ${id}`);
+
   try {
-    const res = await client.query('UPDATE tags SET name = $1 WHERE id = $2 RETURNING id::text, name', [name, id]);
-    if (res.rows.length === 0) {
+    const res = await db
+      .update(tagsTable)
+      .set({ name })
+      .where(eq(tagsTable.id, intId))
+      .returning({ id: tagsTable.id, name: tagsTable.name });
+    if (res.length === 0) {
       throw new Error(`Tag with ID ${id} not found for update.`);
     }
-    return res.rows[0];
+    return { id: String(res[0].id), name: res[0].name };
   } catch (err: any) {
-    if (err.code === '23505') {
+    if (err?.code === "23505") {
       throw new Error(`Another tag with name "${name}" already exists.`);
     }
-    console.error('Error updating tag in database:', err);
+    console.error("Error updating tag in database:", err);
     throw err;
-  } finally {
-    if (client) client.release();
   }
 };
 
-export async function ensureTagsExist(client: PoolClient, tagNames: string[]): Promise<Tag[]> {
-  const ensuredTags: Tag[] = [];
-  const validTagNames = tagNames.filter(tag => tag && tag.trim() !== '');
+export async function ensureTagsExist(
+  tagNames: string[],
+  cx: DBLike = db,
+): Promise<Tag[]> {
+  const ensured: Tag[] = [];
+  const valid = tagNames.map((t) => t?.trim()).filter((t) => !!t) as string[];
+  if (valid.length === 0) return ensured;
 
-  if (validTagNames.length === 0) {
-    return ensuredTags;
+  // existing
+  const existing = await cx
+    .select({ id: tagsTable.id, name: tagsTable.name })
+    .from(tagsTable)
+    .where(inArray(tagsTable.name, valid));
+
+  const map = new Map<string, Tag>();
+  for (const row of existing) {
+    map.set(row.name, { id: String(row.id), name: row.name });
   }
 
-  const existingTagsRes = await client.query('SELECT id, name FROM tags WHERE name = ANY($1::text[])', [validTagNames]);
-  const existingTagsMap = new Map<string, Tag>();
-  for (const row of existingTagsRes.rows) {
-    existingTagsMap.set(row.name, { id: String(row.id), name: row.name });
-  }
+  const toInsert = valid.filter((n) => !map.has(n));
+  if (toInsert.length > 0) {
+    await cx
+      .insert(tagsTable)
+      .values(toInsert.map((name) => ({ name })))
+      .onConflictDoNothing();
 
-  const tagsToInsert = validTagNames.filter(tagName => !existingTagsMap.has(tagName));
+    const all = await cx
+      .select({ id: tagsTable.id, name: tagsTable.name })
+      .from(tagsTable)
+      .where(inArray(tagsTable.name, valid));
 
-  if (tagsToInsert.length > 0) {
-    await client.query(
-      `INSERT INTO tags (name) VALUES ${tagsToInsert.map((_, i) => `($${i + 1})`).join(',')} ON CONFLICT (name) DO NOTHING`,
-      tagsToInsert
-    );
-    const insertedOrExistingRes = await client.query('SELECT id, name FROM tags WHERE name = ANY($1::text[])', [validTagNames]);
-    for (const row of insertedOrExistingRes.rows) {
-      existingTagsMap.set(row.name, { id: String(row.id), name: row.name });
+    for (const row of all) {
+      map.set(row.name, { id: String(row.id), name: row.name });
     }
   }
 
-  for (const tagName of validTagNames) {
-    const tag = existingTagsMap.get(tagName);
-    if (tag) {
-      ensuredTags.push(tag);
-    } else {
-      console.error(`ERROR: Tag "${tagName}" could not be found or created after processing.`);
-    }
+  for (const n of valid) {
+    const t = map.get(n);
+    if (t) ensured.push(t);
+    else console.error(`ERROR: Tag "${n}" not found or created.`);
   }
-  return ensuredTags;
+  return ensured;
 }
-
 
 // --- Submission Management Functions ---
 
-export const fetchPendingSubmissionsFromDatabase = async (): Promise<UserSubmissionBase<any>[]> => {
-  const client = await getClient();
-  try {
-    const res = await client.query("SELECT id, submission_type, data, submitter_name, submitter_email, status, timestamp::text FROM user_submissions WHERE status = 'pending' ORDER BY timestamp ASC");
-    return res.rows.map((row: { id: any; submission_type: any; data: any; submitter_name: any; submitter_email: any; status: any; timestamp: any; description: any; name: any; }) => ({
-      id: Number(row.id),
-      submissionType: row.submission_type,
-      data: row.data,
-      submitterName: row.submitter_name,
-      submitterEmail: row.submitter_email,
-      status: row.status,
-      timestamp: row.timestamp,
-      description: row.description,
-      name: row.name,
-    }));
-  } catch (err) {
-    console.error('Error fetching pending submissions from database:', err);
-    throw err;
-  } finally {
-    if (client) client.release();
-  }
-};
+export const fetchPendingSubmissionsFromDatabase = async (): Promise<
+  UserSubmissionBase<any>[]
+> => {
+  const rows = await db
+    .select({
+      id: userSubmissionsTable.id,
+      submission_type: userSubmissionsTable.submission_type,
+      data: userSubmissionsTable.data,
+      submitter_name: userSubmissionsTable.submitter_name,
+      submitter_email: userSubmissionsTable.submitter_email,
+      status: userSubmissionsTable.status,
+      timestamp: userSubmissionsTable.timestamp,
+    })
+    .from(userSubmissionsTable)
+    .where(eq(userSubmissionsTable.status, "pending"))
+    .orderBy(asc(userSubmissionsTable.timestamp));
 
+  return rows.map((r) => ({
+    id: Number(r.id),
+    submissionType: r.submission_type as "new" | "edit",
+    data: r.data,
+    submitterName: r.submitter_name ?? undefined,
+    submitterEmail: r.submitter_email ?? undefined,
+    status: r.status as "pending" | "approved" | "rejected",
+    timestamp: r.timestamp?.toISOString?.() ?? String(r.timestamp),
+  }));
+};
 
 export async function createSubmissionInDatabase(
-  submission: NewUserSubmission<NewEntrySuggestionData | EditEntrySuggestionData>
+  submission: NewUserSubmission<NewEntrySuggestionData | EditEntrySuggestionData>,
 ): Promise<UserSubmissionBase<NewEntrySuggestionData | EditEntrySuggestionData>> {
-  const client = await getClient();
-  try {
-    const { submissionType, data, submitterName, submitterEmail } = submission;
+  const { submissionType, data, submitterName, submitterEmail } = submission;
 
-    if (submissionType !== 'new' && submissionType !== 'edit') {
-      throw new Error(`Unknown submission type: ${submissionType}`);
-    }
-
-    const submissionDataJson = JSON.stringify(data);
-
-    const res = await client.query(
-      `INSERT INTO user_submissions (submission_type, data, submitter_name, submitter_email, status, timestamp)
-       VALUES ($1, $2, $3, $4, $5, NOW())
-       RETURNING id, submission_type, data, submitter_name, submitter_email, status, timestamp`,
-      [submissionType, submissionDataJson, submitterName, submitterEmail, 'pending']
-    );
-
-    const createdSubmissionRow = res.rows[0];
-
-    return {
-      id: createdSubmissionRow.id,
-      submissionType: createdSubmissionRow.submission_type as 'new' | 'edit',
-      data: createdSubmissionRow.data,
-      submitterName: createdSubmissionRow.submitter_name,
-      submitterEmail: createdSubmissionRow.submitter_email,
-      status: createdSubmissionRow.status,
-      timestamp: createdSubmissionRow.timestamp,
-    };
-  } catch (err) {
-    console.error('Error creating submission:', err);
-    throw err;
-  } finally {
-    client.release();
+  if (submissionType !== "new" && submissionType !== "edit") {
+    throw new Error(`Unknown submission type: ${submissionType}`);
   }
+
+  const res = await db
+    .insert(userSubmissionsTable)
+    .values({
+      submission_type: submissionType,
+      data,
+      submitter_name: submitterName ?? null,
+      submitter_email: submitterEmail ?? null,
+      status: "pending",
+      timestamp: sql`NOW()`,
+    })
+    .returning({
+      id: userSubmissionsTable.id,
+      submission_type: userSubmissionsTable.submission_type,
+      data: userSubmissionsTable.data,
+      submitter_name: userSubmissionsTable.submitter_name,
+      submitter_email: userSubmissionsTable.submitter_email,
+      status: userSubmissionsTable.status,
+      timestamp: userSubmissionsTable.timestamp,
+    });
+
+  const row = res[0];
+  return {
+    id: Number(row.id),
+    submissionType: row.submission_type as "new" | "edit",
+    data: row.data as any,
+    submitterName: row.submitter_name ?? undefined,
+    submitterEmail: row.submitter_email ?? undefined,
+    status: row.status as "pending" | "approved" | "rejected",
+    timestamp: row.timestamp?.toISOString?.() ?? String(row.timestamp),
+  };
 }
+
 export const updateSubmissionStatusInDatabase = async (
   id: number,
-  status: 'pending' | 'approved' | 'rejected'
+  status: "pending" | "approved" | "rejected",
 ): Promise<void> => {
-  const client = await getClient();
-  try {
-    const res = await client.query(
-      'UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2',
-      [status, id]
-    );
-    if (res.rowCount === 0) {
-      throw new Error(`Submission with ID ${id} not found.`);
-    }
-  } catch (err) {
-    console.error(`Error updating submission status for ID ${id} to ${status}:`, err);
-    throw err;
-  } finally {
-    client.release();
-  }
+  await db
+    .update(userSubmissionsTable)
+    .set({ status, updated_at: sql`NOW()` })
+    .where(eq(userSubmissionsTable.id, id));
 };
 
+export async function applyApprovedSubmissionToDatabase(
+  submission: UserSubmissionBase<any>,
+): Promise<AnyEntry> {
+  if (submission.submissionType === "new") {
+    const newEntryData = submission.data as NewEntrySuggestionData & {
+      mentionedEntries?: string[];
+    };
 
+    const createdEntry = await createEntryInDatabase(newEntryData);
 
-export async function applyApprovedSubmissionToDatabase(submission: UserSubmissionBase<any>): Promise<EntryWithReferences> {
-  if (submission.submissionType === 'new') {
-    const newEntryData = submission.data as NewEntrySuggestionData & { mentionedEntries?: string[] };
+    await db
+      .update(userSubmissionsTable)
+      .set({ status: "approved", updated_at: sql`NOW()` })
+      .where(eq(userSubmissionsTable.id, submission.id));
 
-    try {
-      const createdEntry = await createEntryInDatabase(newEntryData);
-
-      const client = await getClient();
-      try {
-        await client.query(
-          'UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2',
-          ['approved', submission.id]
-        );
-      } finally {
-        client.release();
-      }
-
-      return createdEntry;
-    } catch (error) {
-      console.error('Error creating entry from new submission:', error);
-      throw error;
-    }
+    return createdEntry;
   }
 
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
+  // edit flow
+  const editEntryData = submission.data as EditEntrySuggestionData;
 
-    const editEntryData = submission.data as EditEntrySuggestionData;
-    const currentEntry = await getEntryByIdFromDatabase(editEntryData.entryId);
-
-    if (!currentEntry) {
+  return await db.transaction(async (tx) => {
+    const targetId = parseInt(editEntryData.entryId, 10);
+    if (!Number.isFinite(targetId)) {
       throw new Error(`Original entry with ID ${editEntryData.entryId} not found for edit submission.`);
     }
 
+    const existingRows = await tx
+      .select()
+      .from(entries)
+      .where(eq(entries.id, targetId))
+      .limit(1);
+    if (existingRows.length === 0) {
+      throw new Error(`Original entry with ID ${editEntryData.entryId} not found for edit submission.`);
+    }
+    const existing = existingRows[0];
+
+    // Build updated values
     const changes = editEntryData.changes;
-    const entryToUpdate: AnyEntry = { ...currentEntry };
+    const updatedName = changes.name ?? existing.title;
+    const updatedDescription = changes.description ?? existing.definition;
+    const updatedType = changes.entryType ?? (existing.type as "exicon" | "lexicon");
 
-    if (changes.name !== undefined) entryToUpdate.name = changes.name;
-    if (changes.description !== undefined) entryToUpdate.description = changes.description;
-    if (changes.aliases !== undefined) {
-      entryToUpdate.aliases = changes.aliases.map(name => ({ name }));
-    }
-    if (changes.entryType !== undefined) entryToUpdate.type = changes.entryType;
-    if (changes.videoLink !== undefined && entryToUpdate.type === 'exicon') {
-      (entryToUpdate as ExiconEntry).videoLink = changes.videoLink;
-    }
-    if (changes.tags !== undefined && entryToUpdate.type === 'exicon') {
-      const tagNamesArray = Array.isArray(changes.tags) ? changes.tags : [];
-      const ensuredTags = await ensureTagsExist(client, tagNamesArray);
-      (entryToUpdate as ExiconEntry).tags = ensuredTags;
-    }
-    if (changes.mentionedEntries !== undefined) {
-      entryToUpdate.mentionedEntries = changes.mentionedEntries;
-    }
+    const updatedAliasesArray =
+      changes.aliases != null
+        ? changes.aliases.map((n) => ({ name: n }))
+        : toAliasArray(existing.aliases);
 
-    const { id, name, description, type } = entryToUpdate;
-    const videoLink = (type === 'exicon') ? (entryToUpdate as ExiconEntry).videoLink || null : null;
+    const updatedVideoLink =
+      (changes.videoLink ?? existing.video_link) ??
+      null;
 
-    const aliasesToStore = Array.isArray(entryToUpdate.aliases)
-      ? entryToUpdate.aliases.map(alias => (typeof alias === 'string' ? { name: alias } : alias))
-      : [];
-    const aliasesJson = JSON.stringify(aliasesToStore.filter(a => a.name.trim() !== ''));
+    await tx
+      .update(entries)
+      .set({
+        title: updatedName,
+        definition: updatedDescription,
+        type: updatedType,
+        aliases: updatedAliasesArray.filter((a) => a.name?.trim() !== ""),
+        video_link: updatedType === "exicon" ? updatedVideoLink : null,
+        updated_at: sql`NOW()`,
+      })
+      .where(eq(entries.id, targetId));
 
-    await client.query(
-      'UPDATE entries SET title = $1, definition = $2, type = $3, aliases = $4, video_link = $5, updated_at = NOW() WHERE id = $6',
-      [name, description, type, aliasesJson, videoLink, id]
-    );
+    if (updatedType === "exicon") {
+      await tx.delete(entryTags).where(eq(entryTags.entry_id, targetId));
 
-    if (type === 'exicon') {
-      await client.query('DELETE FROM entry_tags WHERE entry_id = $1', [id]);
-      const tags = (entryToUpdate as ExiconEntry).tags;
-
-      if (tags && tags.length > 0) {
-        const ensuredTags = await ensureTagsExist(client, tags.map(t => t.name));
-        const tagIds = ensuredTags.map(t => t.id).filter(Boolean);
-        if (tagIds.length > 0) {
-          const entryTagValues = tagIds.map(tagId => `('${id}', '${tagId}')`).join(',');
-          await client.query(`INSERT INTO entry_tags (entry_id, tag_id) VALUES ${entryTagValues} ON CONFLICT (entry_id, tag_id) DO NOTHING`);
+      const tagNames =
+        changes.tags != null ? changes.tags : (await getEntryTagsMapForIds([targetId], tx)).get(targetId)?.map((t) => t.name) ?? [];
+      if (tagNames.length > 0) {
+        const ensured = await ensureTagsExist(tagNames, tx);
+        const values = ensured
+          .map((t) => parseInt(t.id, 10))
+          .filter((n) => Number.isFinite(n))
+          .map((tid) => ({ entry_id: targetId, tag_id: tid }));
+        if (values.length > 0) {
+          await tx.insert(entryTags).values(values).onConflictDoNothing();
         }
       }
-    }
-
-    let mentionedEntryIds: string[] = [];
-    if (entryToUpdate.mentionedEntries && entryToUpdate.mentionedEntries.length > 0) {
-      mentionedEntryIds = entryToUpdate.mentionedEntries;
     } else {
-      const mentionRegex = /@([A-Za-z0-9][A-Za-z0-9\s_.-]*[A-Za-z0-9])(?=\s|$|[,.!?;:])/g;
-      const mentionedNames = [...new Set(
-        Array.from(description.matchAll(mentionRegex)).map(match => match[1].trim())
-      )];
-
-      const resolvedReferencesPromises = mentionedNames.map(async (name) => {
-        const res = await client.query('SELECT id::text FROM entries WHERE LOWER(title) = LOWER($1)', [name]);
-        return res.rows.length > 0 ? res.rows[0].id : null;
-      });
-
-      const resolvedIds = (await Promise.all(resolvedReferencesPromises)).filter(Boolean) as string[];
-      mentionedEntryIds = resolvedIds;
+      // if switching to lexicon, clear any tags
+      await tx.delete(entryTags).where(eq(entryTags.entry_id, targetId));
     }
 
-    await client.query(
-      'UPDATE entries SET mentioned_entries = $1 WHERE id = $2',
-      [JSON.stringify(mentionedEntryIds), id]
+    const mentionedEntries =
+      changes.mentionedEntries ??
+      toMentionedEntries(existing.mentioned_entries);
+
+    await processAndSaveReferences(
+      String(targetId),
+      updatedDescription,
+      mentionedEntries,
+      tx,
     );
 
-    await client.query('DELETE FROM entry_references WHERE source_entry_id = $1', [id]);
-    for (const targetId of mentionedEntryIds) {
-      if (targetId !== id) {
-        await client.query(
-          `INSERT INTO entry_references (source_entry_id, target_entry_id)
-           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [id, targetId]
-        );
-      }
+    await tx
+      .update(userSubmissionsTable)
+      .set({ status: "approved", updated_at: sql`NOW()` })
+      .where(eq(userSubmissionsTable.id, submission.id));
+
+    const final = await getEntryByIdFromDatabase(targetId, tx);
+    if (!final) {
+      throw new Error("Failed to retrieve updated entry with references.");
     }
-
-    await client.query(
-      'UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2',
-      ['approved', submission.id]
-    );
-
-    await client.query('COMMIT');
-
-    const finalEntry = await getEntryByIdFromDatabase(id);
-    if (!finalEntry) {
-      throw new Error('Failed to retrieve updated entry with references.');
-    }
-
-    return finalEntry;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error applying approved submission to database:', error);
-    throw error;
-  } finally {
-    if (client) client.release();
-  }
+    return final;
+  });
 }
 
 export const createEntryInDatabase = async (
-  entry: NewEntrySuggestionData & { id?: string; mentionedEntries?: string[] }
-): Promise<EntryWithReferences> => {
-  const client = await getClient();
-  try {
-    await client.query('BEGIN');
-
-    const { name, description, entryType, aliases, videoLink, tags, mentionedEntries } = entry;
-    const entryId =
-      entry.id || `${entryType}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`;
-
+  entry: NewEntrySuggestionData & { id?: string; mentionedEntries?: string[] },
+): Promise<AnyEntry> => {
+  return await db.transaction(async (tx) => {
+    const { name, description, entryType, aliases, videoLink, tags, mentionedEntries } =
+      entry;
 
     const aliasesToStore: Alias[] = Array.isArray(aliases)
-      ? aliases.map(alias =>
-        typeof alias === 'string' ? { name: alias.trim() } : alias
-      )
+      ? aliases
+          .map((a) => (typeof a === "string" ? { name: a.trim() } : a))
+          .filter((a) => a && a.name && a.name.trim() !== "")
       : [];
 
-    const aliasesJson = JSON.stringify(
-      aliasesToStore.filter(a => a && a.name && a.name.trim() !== '')
-    );
+    // Insert entry, letting DB generate ID
+    const inserted = await tx
+      .insert(entries)
+      .values({
+        title: name,
+        definition: description,
+        type: entryType,
+        aliases: aliasesToStore,
+        video_link: entryType === "exicon" ? (videoLink ?? null) : null,
+        mentioned_entries: [],
+      })
+      .returning({ id: entries.id });
 
-    const insertResult = await client.query(
-      `INSERT INTO entries (id, title, definition, type, aliases, video_link, mentioned_entries)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [entryId, name, description, entryType, aliasesJson, videoLink || null, '[]']
-    );
+    const newId = inserted[0].id;
 
-
-    if (entryType === 'exicon' && tags && tags.length > 0) {
-      const ensuredTagsWithIds = await ensureTagsExist(client, tags);
-      const entryTagValues = ensuredTagsWithIds
-        .map(tag => `('${entryId}', '${tag.id}')`)
-        .join(',');
-
-      if (entryTagValues) {
-        await client.query(`
-          INSERT INTO entry_tags (entry_id, tag_id)
-          VALUES ${entryTagValues}
-          ON CONFLICT (entry_id, tag_id) DO NOTHING
-        `);
+    // Tags
+    if (entryType === "exicon" && tags && tags.length > 0) {
+      const ensured = await ensureTagsExist(tags, tx);
+      const values = ensured
+        .map((t) => parseInt(t.id, 10))
+        .filter((n) => Number.isFinite(n))
+        .map((tid) => ({ entry_id: newId, tag_id: tid }));
+      if (values.length > 0) {
+        await tx.insert(entryTags).values(values).onConflictDoNothing();
       }
     }
 
+    // References
+    await processAndSaveReferences(String(newId), description, mentionedEntries, tx);
 
-    await processAndSaveReferences(entryId, description, mentionedEntries, client);
-
-    await client.query('COMMIT');
-
-    const createdEntry = await getEntryByIdFromDatabase(entryId);
-    if (!createdEntry) {
-      throw new Error(`Failed to retrieve created entry with ID ${entryId}`);
+    const created = await getEntryByIdFromDatabase(newId, tx);
+    if (!created) {
+      throw new Error(`Failed to retrieve created entry with ID ${newId}`);
     }
-
-
-    return createdEntry;
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('❌ Error creating entry in database:', err);
-    throw err;
-  } finally {
-    client.release();
-  }
+    return created;
+  });
 };
 
+export async function searchEntriesByName(
+  query: string,
+): Promise<AnyEntry[]> {
+  if (!query || query.trim() === "") return [];
 
-export async function searchEntriesByName(query: string): Promise<EntryWithReferences[]> {
-  const client = await getClient();
-  try {
-    if (!query || query.trim() === '') {
-      return [];
-    }
+  const trimmed = query.trim().toLowerCase();
+  const likeAll = `%${trimmed}%`;
+  const startsWith = `${trimmed}%`;
 
-    const trimmedQuery = query.trim().toLowerCase();
-    const searchQuery = `%${trimmedQuery}%`;
+  // Compute priority similar to the original query, using Drizzle SQL fragments
+  const priorityExpr = sql<number>`
+    CASE 
+      WHEN LOWER(${entries.title}) = ${trimmed} THEN 1
+      WHEN LOWER(${entries.title}) = ${trimmed} THEN 1
+      WHEN ${trimmed} = ANY(string_to_array(LOWER(${entries.title}), ' ')) THEN 
+        CASE WHEN LOWER(${entries.title}) LIKE '%' || ${trimmed} THEN 2 ELSE 3 END
+      WHEN LOWER(${entries.title}) LIKE ${startsWith} THEN 4
+      WHEN EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+        WHERE LOWER(alias_elem) = ${trimmed}
+      ) THEN 5
+      WHEN EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+        WHERE ${trimmed} = ANY(string_to_array(LOWER(alias_elem), ' '))
+      ) THEN 
+        CASE WHEN EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+          WHERE LOWER(alias_elem) LIKE '%' || ${trimmed}
+        ) THEN 6 ELSE 7 END
+      WHEN EXISTS (
+        SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem  
+        WHERE LOWER(alias_elem) LIKE ${startsWith}
+      ) THEN 8
+      WHEN LOWER(${entries.title}) LIKE ${likeAll} THEN 9
+      ELSE 10
+    END
+  `;
+  const titleLenExpr = sql<number>`LENGTH(${entries.title})`;
+  const endingBoostExpr = sql<number>`
+    CASE WHEN LOWER(${entries.title}) LIKE '%' || ${trimmed} THEN 0 ELSE 1 END
+  `;
 
-    const res = await client.query(
-      `SELECT
-            e.id,
-            e.title,
-            e.definition,
-            e.type,
-            e.aliases,
-            e.video_link,
-            e.mentioned_entries,
-            ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array,
-            -- More aggressive priority scoring
-            CASE 
-              -- Exact match on full title gets highest priority
-              WHEN LOWER(e.title) = $2 THEN 1
-              -- Title equals just the query (for single word titles)
-              WHEN LOWER(e.title) = $2 THEN 1
-              -- Exact match on individual words in title, prefer if it's the last word
-              WHEN $2 = ANY(string_to_array(LOWER(e.title), ' ')) THEN 
-                CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 2 ELSE 3 END
-              -- Title starts with query gets fourth priority  
-              WHEN LOWER(e.title) LIKE $3 THEN 4
-              -- Exact match in aliases gets fifth priority
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                WHERE LOWER(alias_elem) = $2
-              ) THEN 5
-              -- Exact match on words in aliases, prefer if it ends with the query
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                WHERE $2 = ANY(string_to_array(LOWER(alias_elem), ' '))
-              ) THEN 
-                CASE WHEN EXISTS (
-                  SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-                  WHERE LOWER(alias_elem) LIKE '%' || $2
-                ) THEN 6 ELSE 7 END
-              -- Alias starts with query gets eighth priority
-              WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem  
-                WHERE LOWER(alias_elem) LIKE $3
-              ) THEN 8
-              -- Title contains query gets ninth priority
-              WHEN LOWER(e.title) LIKE $1 THEN 9
-              -- Alias contains query gets lowest priority
-              ELSE 10
-            END as priority,
-            -- Prefer shorter titles and titles ending with the search term
-            LENGTH(e.title) as title_length,
-            -- Boost score for titles ending with the search term
-            CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 0 ELSE 1 END as ending_boost
-         FROM
-            entries e
-         LEFT JOIN
-            entry_tags et ON e.id = et.entry_id
-         LEFT JOIN
-            tags t ON et.tag_id = t.id
-         WHERE
-            LOWER(e.title) LIKE $1 
-            OR EXISTS (
-              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-              WHERE LOWER(alias_elem) LIKE $1
-            )
-         GROUP BY
-            e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
-         ORDER BY
-            priority ASC, ending_boost ASC, title_length ASC, e.title ASC
-         LIMIT 10`,
-      [searchQuery, trimmedQuery, `${trimmedQuery}%`]
-    );
+  const rows = await db
+    .select({
+      id: entries.id,
+      title: entries.title,
+      definition: entries.definition,
+      type: entries.type,
+      aliases: entries.aliases,
+      video_link: entries.video_link,
+      mentioned_entries: entries.mentioned_entries,
+      priority: priorityExpr,
+      title_length: titleLenExpr,
+      ending_boost: endingBoostExpr,
+    })
+    .from(entries)
+    .where(
+      sql`
+        LOWER(${entries.title}) LIKE ${likeAll}
+        OR EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(${entries.aliases}::jsonb) AS alias_elem
+          WHERE LOWER(alias_elem) LIKE ${likeAll}
+        )
+      `,
+    )
+    // Order by the computed expressions directly
+    .orderBy(
+      sql`priority ASC`,
+      sql`ending_boost ASC`,
+      sql`title_length ASC`,
+      asc(entries.title),
+    )
+    .limit(10);
 
-    return res.rows.map(row => transformDbRowToEntry(row)) as EntryWithReferences[];
+  // Attach tags
+  const ids = rows.map((r) => r.id);
+  const tagMap = await getEntryTagsMapForIds(ids, db);
 
-  } catch (error) {
-    console.error("Failed to search entries by name:", error);
-    throw new Error("Failed to search entries.");
-  } finally {
-    client.release();
-  };
+  const results: AnyEntry[] = rows.map((row) => {
+    const base = toAnyEntryBase(row);
+    return withTags(base, tagMap.get(row.id) ?? []);
+  });
+
+  return results;
 }

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { EntryForm } from '@/components/admin/EntryForm';
@@ -42,12 +41,6 @@ import {
 
 export default function AdminPanel() {
     const { toast } = useToast();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [passwordInput, setPasswordInput] = useState('');
-
     const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<AnyEntry | undefined>(undefined);
 
@@ -61,6 +54,8 @@ export default function AdminPanel() {
     const [originalEntryForEditView, setOriginalEntryForEditView] = useState<AnyEntry | null>(null);
     const [isLoadingOriginalEntry, setIsLoadingOriginalEntry] = useState(false);
     const [isSubmissionDetailOpen, setIsSubmissionDetailOpen] = useState(false);
+    const [processingSubmissionIds, setProcessingSubmissionIds] = useState<Set<number>>(new Set());
+    const processingSubmissionIdsRef = useRef<Set<number>>(new Set());
 
     const [lexiconEntriesForDisplay, setLexiconEntriesForDisplay] = useState<AnyEntry[]>([]);
     const [isLoadingEntries, setIsLoadingEntries] = useState(true);
@@ -70,23 +65,6 @@ export default function AdminPanel() {
     const [filteredEntries, setFilteredEntries] = useState<AnyEntry[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage, setEntriesPerPage] = useState(20);
-
-    useEffect(() => {
-        const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-        const urlPassword = searchParams.get('password');
-
-        if (urlPassword === adminPassword) {
-            setIsAuthenticated(true);
-        } else {
-            setIsAuthenticated(false);
-        }
-    }, [searchParams]);
-
-    const handlePasswordSubmit = () => {
-        if (passwordInput) {
-            router.push(`/admin?password=${passwordInput}`);
-        }
-    };
 
     const refetchAllData = useCallback(async () => {
         setIsLoadingEntries(true);
@@ -115,10 +93,8 @@ export default function AdminPanel() {
     }, [toast]);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            refetchAllData();
-        }
-    }, [isAuthenticated, refetchAllData]);
+        refetchAllData();
+    }, [refetchAllData]);
 
     useEffect(() => {
         const filtered = lexiconEntriesForDisplay.filter(entry => {
@@ -264,71 +240,63 @@ export default function AdminPanel() {
     };
 
     const handleApproveSubmission = async (submissionId: number) => {
-        const submission = userSubmissions.find(s => s.id === submissionId);
-        if (submission) {
-            try {
+        if (processingSubmissionIdsRef.current.has(submissionId)) return;
+        processingSubmissionIdsRef.current.add(submissionId);
+        setProcessingSubmissionIds((prev) => {
+            const next = new Set(prev);
+            next.add(submissionId);
+            return next;
+        });
+        try {
+            const submission = userSubmissions.find(s => s.id === submissionId);
+            if (submission) {
                 await applyApprovedSubmissionToDatabase(submission);
                 await updateSubmissionStatusInDatabase(submissionId, 'approved');
                 toast({ title: "Submission Approved", description: `Submission ID "${submissionId}" has been approved.` });
                 refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
-            } catch (error) {
-                console.error("Error approving submission:", error);
-                toast({ title: "Approval Failed", description: `Could not approve submission ID "${submissionId}". Details: ${(error as Error).message}`, variant: "destructive" });
             }
+        } catch (error) {
+            console.error("Error approving submission:", error);
+            toast({ title: "Approval Failed", description: `Could not approve submission ID "${submissionId}". Details: ${(error as Error).message}`, variant: "destructive" });
+        } finally {
+            processingSubmissionIdsRef.current.delete(submissionId);
+            setProcessingSubmissionIds((prev) => {
+                const next = new Set(prev);
+                next.delete(submissionId);
+                return next;
+            });
         }
     };
 
     const handleRejectSubmission = async (submissionId: number) => {
-        const submission = userSubmissions.find(s => s.id === submissionId);
-        if (submission) {
-            try {
+        if (processingSubmissionIdsRef.current.has(submissionId)) return;
+        processingSubmissionIdsRef.current.add(submissionId);
+        setProcessingSubmissionIds((prev) => {
+            const next = new Set(prev);
+            next.add(submissionId);
+            return next;
+        });
+        try {
+            const submission = userSubmissions.find(s => s.id === submissionId);
+            if (submission) {
                 await updateSubmissionStatusInDatabase(submissionId, 'rejected');
                 toast({ title: "Submission Rejected", description: `Submission ID "${submissionId}" has been rejected.` });
                 refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
-            } catch (error) {
-                console.error("Error rejecting submission:", error);
-                toast({ title: "Reject Failed", description: `Could not reject submission ID "${submissionId}".`, variant: "destructive" });
             }
+        } catch (error) {
+            console.error("Error rejecting submission:", error);
+            toast({ title: "Reject Failed", description: `Could not reject submission ID "${submissionId}".`, variant: "destructive" });
+        } finally {
+            processingSubmissionIdsRef.current.delete(submissionId);
+            setProcessingSubmissionIds((prev) => {
+                const next = new Set(prev);
+                next.delete(submissionId);
+                return next;
+            });
         }
     };
-
-    if (!isAuthenticated) {
-        return (
-            <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
-                <Card className="w-[350px] shadow-lg">
-                    <CardHeader className="text-center">
-                        <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-2" />
-                        <CardTitle>Admin Access Required</CardTitle>
-                        <CardDescription>Please enter the admin password to continue.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid w-full items-center gap-4">
-                            <div className="flex flex-col space-y-1.5">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Enter password..."
-                                    value={passwordInput}
-                                    onChange={(e) => setPasswordInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handlePasswordSubmit();
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button onClick={handlePasswordSubmit}>Access Panel</Button>
-                    </CardFooter>
-                </Card>
-            </div>
-        );
-    }
 
     return (
         <PageContainer>
@@ -590,11 +558,11 @@ export default function AdminPanel() {
                                                     <Eye className="h-4 w-4" />
                                                     <span className="sr-only">View Details</span>
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleApproveSubmission(submission.id)} className="text-green-600 hover:text-green-500">
+                                                <Button variant="ghost" size="icon" onClick={() => handleApproveSubmission(submission.id)} className="text-green-600 hover:text-green-500" disabled={processingSubmissionIds.has(submission.id)} aria-busy={processingSubmissionIds.has(submission.id)}>
                                                     <CheckCircle className="h-4 w-4" />
                                                     <span className="sr-only">Approve</span>
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleRejectSubmission(submission.id)} className="text-red-600 hover:text-red-500">
+                                                <Button variant="ghost" size="icon" onClick={() => handleRejectSubmission(submission.id)} className="text-red-600 hover:text-red-500" disabled={processingSubmissionIds.has(submission.id)} aria-busy={processingSubmissionIds.has(submission.id)}>
                                                     <XCircle className="h-4 w-4" />
                                                     <span className="sr-only">Reject</span>
                                                 </Button>
@@ -697,8 +665,8 @@ export default function AdminPanel() {
                         </DialogClose>
                         {viewingSubmission && (
                             <>
-                                <Button onClick={() => handleApproveSubmission(viewingSubmission.id)} className="bg-green-600 hover:bg-green-700 text-white">Approve</Button>
-                                <Button onClick={() => handleRejectSubmission(viewingSubmission.id)} className="bg-red-600 hover:bg-red-700 text-white">Reject</Button>
+                                <Button onClick={() => handleApproveSubmission(viewingSubmission.id)} className="bg-green-600 hover:bg-green-700 text-white" disabled={processingSubmissionIds.has(viewingSubmission.id)} aria-busy={processingSubmissionIds.has(viewingSubmission.id)}>Approve</Button>
+                                <Button onClick={() => handleRejectSubmission(viewingSubmission.id)} className="bg-red-600 hover:bg-red-700 text-white" disabled={processingSubmissionIds.has(viewingSubmission.id)} aria-busy={processingSubmissionIds.has(viewingSubmission.id)}>Reject</Button>
                             </>
                         )}
                     </DialogFooter>

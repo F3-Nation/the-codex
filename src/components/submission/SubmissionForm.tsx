@@ -27,6 +27,7 @@ export function SubmissionForm() {
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export function SubmissionForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name || !description) {
       toast({
         title: "Missing Information",
@@ -90,6 +92,7 @@ export function SubmissionForm() {
     };
 
     try {
+      setIsSubmitting(true);
       await submitNewEntrySuggestion(submissionPayload);
       toast({
         title: "Submission Received",
@@ -99,6 +102,8 @@ export function SubmissionForm() {
     } catch (error) {
       console.error("Error submitting new entry:", error);
       toast({ title: "Submission Failed", description: "Could not submit your entry. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -198,7 +203,9 @@ export function SubmissionForm() {
           )}
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full text-lg py-6">Submit for Review</Button>
+          <Button type="submit" className="w-full text-lg py-6" disabled={isSubmitting} aria-busy={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'Submit for Review'}
+          </Button>
         </CardFooter>
       </form>
     </Card>

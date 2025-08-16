@@ -2,11 +2,11 @@
 import * as fs from 'fs'; // For reading the CSV file
 import csv from 'csv-parser'; // For parsing CSV data
 // Import NewUserSubmission specifically as it's the correct input type
-import { createSubmissionInDatabase, applyApprovedSubmissionToDatabase, ensureTagsExist } from '../../../lib/api'; // ensureTagsExist will be moved here
-import { getClient } from '../../../lib/db';
+import { createSubmissionInDatabase, applyApprovedSubmissionToDatabase, ensureTagsExist } from '@/lib/api'; // ensureTagsExist will be moved here
+import { db } from '@/drizzle/db';
 import { NextResponse } from 'next/server';
-import type { NewEntrySuggestionData, NewUserSubmission } from '../../../lib/types'; // Corrected import
-import { PoolClient } from 'pg';
+import type { NewEntrySuggestionData, NewUserSubmission } from '@/lib/types'; // Corrected import
+import { entries, tags, entryTags, userSubmissions } from '@/drizzle/schema';
 
 // --- Configuration for CSV Import ---
 const CSV_FILE_PATH = 'exicon.csv'; // Exicon CSV file path
@@ -107,7 +107,7 @@ async function readCsvFile(filePath: string): Promise<ExiconCsvRow[]> {
  * @param client The database client (needed for tag creation).
  * @returns The number of successfully imported entries.
  */
-async function processCsvRows(rows: ExiconCsvRow[], client: PoolClient): Promise<number> {
+async function processCsvRows(rows: ExiconCsvRow[]): Promise<number> {
     let importedCount = 0;
     for (const row of rows) {
         const title = row.Title?.trim();
@@ -136,7 +136,8 @@ async function processCsvRows(rows: ExiconCsvRow[], client: PoolClient): Promise
                 entryType: ENTRY_TYPE_EXICON,
                 tags: tags, // This is already string[] as expected by NewEntrySuggestionData
                 videoLink: videoLink,
-                timestamp: Date.now().toString(), // Use current timestamp as string
+                mentionedEntries: [], // Added empty array as default value
+                // timestamp: Date.now().toString(), // Removed since not in NewEntrySuggestionData
             },
             submitterName: SUBMITTER_NAME,
             submitterEmail: SUBMITTER_EMAIL,
@@ -158,19 +159,17 @@ async function processCsvRows(rows: ExiconCsvRow[], client: PoolClient): Promise
 }
 
 export async function POST() {
-    let client: PoolClient | null = null; // Initialize client to null
     try {
-        client = await getClient(); // Acquire client at the beginning
-        console.log('Database client acquired.');
+        console.log('Starting exicon CSV import...');
 
         // --- Step 1: Delete All Existing Data (Optional for a dedicated import, but good for reset) ---
         // console.log('Detected request to wipe and re-import. Deleting existing data...');
-        // await client.query('DELETE FROM entry_tags;');
-        // await client.query('DELETE FROM entries;');
-        // await client.query('DELETE FROM user_submissions;');
+        // await db.delete(entryTags);
+        // await db.delete(entries);
+        // await db.delete(userSubmissions);
         // Uncomment if you also want to completely reset your tags table
-        // await client.query('DELETE FROM tags;');
-        console.log('Existing data deleted.');
+        // await db.delete(tags);
+        console.log('Existing data deleted (if uncommented).');
 
 
         // --- Step 2: Import Data from exicon.csv ---
@@ -181,8 +180,7 @@ export async function POST() {
             const stats = fs.statSync(CSV_FILE_PATH);
             console.log(`DEBUG: Exicon CSV file found. Size: ${stats.size} bytes, Last modified: ${stats.mtime}`);
             const exiconRows = await readCsvFile(CSV_FILE_PATH);
-            // Pass the acquired client to processCsvRows for tag handling
-            importedCount = await processCsvRows(exiconRows, client);
+        importedCount = await processCsvRows(exiconRows);
             console.log(`Successfully imported ${importedCount} exicon entries from ${CSV_FILE_PATH}.`);
         } catch (csvReadError: any) {
             console.warn(`⚠️ Error reading/processing exicon CSV: ${csvReadError.message}. Skipping exicon import.`);
@@ -210,10 +208,5 @@ export async function POST() {
             { success: false, message: 'Failed to import exicon CSV data. Check server logs.', error: error.message },
             { status: 500 }
         );
-    } finally {
-        if (client) {
-            client.release(); // Ensure the client is released back to the pool
-            console.log('Database client released.');
-        }
     }
 }

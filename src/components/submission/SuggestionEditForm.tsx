@@ -34,6 +34,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [suggestedReferences, setSuggestedReferences] = useState<ReferencedEntry[]>([]);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
   
     if (!comments.trim()) {
       toast({ title: "Comments Required", description: "Please provide comments explaining your suggested changes.", variant: "destructive" });
@@ -142,6 +144,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
     };
   
     try {
+      setIsSubmitting(true);
       await submitEditEntrySuggestion(submissionPayload);
       toast({
         title: "Suggestion Submitted",
@@ -152,6 +155,8 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
     } catch (error) {
       console.error("Error submitting edit suggestion:", error);
       toast({ title: "Submission Failed", description: "Could not submit your edit suggestion. Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -263,7 +268,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
         </Tabs>
         <CardFooter className="px-1 pt-6 pb-0 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit">Submit Suggestion</Button>
+          <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'Submit Suggestion'}
+          </Button>
         </CardFooter>
       </form>
     </Card>

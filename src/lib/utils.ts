@@ -96,12 +96,21 @@ export function exportToCSV(entries: AnyEntry[], filename: string = 'f3-codex-ex
   const header = ['ID', 'Name', 'Description', 'Aliases'];
   const csvRows = [
     header.join(','),
-    ...entries.map(entry => [
-      JSON.stringify(entry.id, replacer),
-      JSON.stringify(entry.name, replacer),
-      JSON.stringify(entry.description, replacer),
-      JSON.stringify(entry.aliases?.join('; ') || '', replacer),
-    ].join(','))
+    ...entries.map(entry => {
+      const aliasNames =
+        Array.isArray(entry.aliases)
+          ? entry.aliases
+              .map((alias: any) => (typeof alias === 'string' ? alias : alias?.name ?? ''))
+              .filter((s: string) => typeof s === 'string' && s.trim() !== '')
+              .join('; ')
+          : '';
+      return [
+        JSON.stringify(entry.id, replacer),
+        JSON.stringify(entry.name, replacer),
+        JSON.stringify(entry.description, replacer),
+        JSON.stringify(aliasNames, replacer),
+      ].join(',');
+    })
   ];
 
   const csvString = csvRows.join('\n');

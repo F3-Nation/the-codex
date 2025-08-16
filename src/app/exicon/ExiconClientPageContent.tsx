@@ -61,6 +61,42 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
     });
   }, [initialEntries, searchTerm, filterLetter, selectedTags, filterLogic]);
 
+  const handleExportLatest = async () => {
+    try {
+      const res = await fetch('/api/exicon', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch latest exicon entries');
+      const latest: ExiconEntry[] = await res.json();
+
+      const filtered = latest.filter(entry => {
+        const matchesSearch =
+          searchTerm === '' ||
+          entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (entry.aliases && entry.aliases.some(alias => {
+            const aliasName = typeof alias === 'string' ? alias : alias.name;
+            return aliasName?.toLowerCase().includes(searchTerm.toLowerCase());
+          }));
+
+        const matchesLetter = filterLetter === 'All' || entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
+
+        const matchesTags = () => {
+          if (selectedTags.length === 0) {
+            return true;
+          }
+          const entryTagIds = entry.tags?.map(tag => tag.id) || [];
+          return filterLogic === 'AND'
+            ? selectedTags.every(selectedTagId => entryTagIds.includes(selectedTagId))
+            : selectedTags.some(selectedTagId => entryTagIds.includes(selectedTagId));
+        };
+
+        return matchesSearch && matchesLetter && matchesTags();
+      });
+
+      exportToCSV(filtered.filter((e): e is ExiconEntry => e.type === 'exicon'));
+    } catch (error) {
+      console.error('❌ Export CSV Error:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-8">
       {/* Sidebar for Filters */}
@@ -113,7 +149,7 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search exercises by name or alias..." />
           <Button
-            onClick={() => exportToCSV(filteredEntries.filter((entry): entry is ExiconEntry => entry.type === 'exicon'))}
+            onClick={handleExportLatest}
             variant="outline"
             className="w-full sm:w-auto"
           >
