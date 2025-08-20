@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbopack --port 3001 --experimental-https",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
@@ -12,7 +12,8 @@
     "deploy": "npm run build && firebase deploy --only apphosting:the-codex",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -46,6 +47,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dotenv": "^16.5.0",
+    "f3-nation-auth-sdk": "^0.1.4",
     "firebase": "^11.7.0",
     "firebase-admin": "^13.4.0",
     "genkit": "^1.8.0",

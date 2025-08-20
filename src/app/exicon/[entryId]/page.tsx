@@ -9,8 +9,8 @@ import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 import CopyLinkButton from '@/components/shared/CopyLinkButton';
 
-export default async function ExiconEntryPage({ params }: { params: { entryId: string } }) {
-    const entryId = params.entryId;
+export default async function ExiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
+    const { entryId } = await params;
 
     const entry = await getEntryByIdFromDatabase(entryId);
 

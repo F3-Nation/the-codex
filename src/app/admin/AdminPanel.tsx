@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/button';
 import { EntryForm } from '@/components/admin/EntryForm';
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Inbox, Tag as TagIcon, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Inbox, Tag as TagIcon, CheckCircle, XCircle, Eye, LogOut, Flame, Lock } from 'lucide-react';
 import type { AnyEntry, Tag, NewEntrySuggestionData, EditEntrySuggestionData, ExiconEntry, UserSubmissionBase, Alias } from '@/lib/types';
 import {
     Dialog,
@@ -39,14 +39,31 @@ import {
     fetchEntryById,
     fetchAllEntries,
 } from './actions';
+import { getOAuthConfig } from '@/lib/auth';
+
+interface UserInfo {
+  sub: string;
+  name?: string;
+  email?: string;
+  picture?: string;
+  email_verified?: boolean;
+}
+
+interface OAuthConfig {
+  CLIENT_ID: string;
+  REDIRECT_URI: string;
+  AUTH_SERVER_URL: string;
+}
 
 export default function AdminPanel() {
     const { toast } = useToast();
     const router = useRouter();
-    const searchParams = useSearchParams();
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [passwordInput, setPasswordInput] = useState('');
+    const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [oauthConfig, setOauthConfig] = useState<OAuthConfig | null>(null);
 
     const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<AnyEntry | undefined>(undefined);
@@ -71,22 +88,70 @@ export default function AdminPanel() {
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage, setEntriesPerPage] = useState(20);
 
-    useEffect(() => {
-        const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
-        const urlPassword = searchParams.get('password');
-
-        if (urlPassword === adminPassword) {
-            setIsAuthenticated(true);
-        } else {
-            setIsAuthenticated(false);
+    const handleLogin = () => {
+        if (!oauthConfig) {
+            setError('OAuth configuration not loaded');
+            return;
         }
-    }, [searchParams]);
 
-    const handlePasswordSubmit = () => {
-        if (passwordInput) {
-            router.push(`/admin?password=${passwordInput}`);
-        }
+        // Generate CSRF token and create state parameter in the format expected by auth-provider
+        const csrfToken = crypto.randomUUID();
+        const stateData = {
+            csrfToken,
+            clientId: oauthConfig.CLIENT_ID,
+            returnTo: oauthConfig.REDIRECT_URI,
+            timestamp: Date.now(),
+        };
+
+        // Encode state as base64-encoded JSON (matching auth-provider's expectation)
+        const state = btoa(JSON.stringify(stateData));
+        localStorage.setItem('oauth_state', state);
+
+        window.location.href = `${oauthConfig.AUTH_SERVER_URL}/api/oauth/authorize?response_type=code&client_id=${oauthConfig.CLIENT_ID}&redirect_uri=${encodeURIComponent(oauthConfig.REDIRECT_URI)}&scope=openid%20profile%20email&state=${encodeURIComponent(state)}`;
     };
+
+    const handleLogout = () => {
+        // Clear all stored auth data
+        localStorage.removeItem('user_info');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('oauth_state');
+
+        setUserInfo(null);
+        setIsAuthenticated(false);
+        setError(null);
+    };
+
+    // Load OAuth configuration and check for stored user info on component mount
+    useEffect(() => {
+        const initializeApp = async () => {
+            try {
+                // Load OAuth configuration using server action
+                const config = await getOAuthConfig();
+                setOauthConfig(config);
+
+                // Check for stored user info
+                const storedUserInfo = localStorage.getItem('user_info');
+                if (storedUserInfo) {
+                    try {
+                        const parsedUserInfo = JSON.parse(storedUserInfo);
+                        setUserInfo(parsedUserInfo);
+                        setIsAuthenticated(true);
+                    } catch (err) {
+                        console.error('Failed to parse stored user info:', err);
+                        localStorage.removeItem('user_info');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load OAuth configuration:', err);
+                setError('Failed to load OAuth configuration');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        initializeApp();
+    }, []);
 
     const refetchAllData = useCallback(async () => {
         setIsLoadingEntries(true);
@@ -294,37 +359,53 @@ export default function AdminPanel() {
         }
     };
 
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Logging you in...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!isAuthenticated) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
-                <Card className="w-[350px] shadow-lg">
-                    <CardHeader className="text-center">
-                        <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-2" />
-                        <CardTitle>Admin Access Required</CardTitle>
-                        <CardDescription>Please enter the admin password to continue.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid w-full items-center gap-4">
-                            <div className="flex flex-col space-y-1.5">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Enter password..."
-                                    value={passwordInput}
-                                    onChange={(e) => setPasswordInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            handlePasswordSubmit();
-                                        }
-                                    }}
-                                />
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <Card className="w-full max-w-md shadow-lg">
+                    <CardHeader className="text-center space-y-4">
+                        <div className="flex justify-center">
+                            <div className="relative">
+                                <Flame className="h-12 w-12 text-primary" />
+                                <Lock className="h-6 w-6 text-muted-foreground absolute -bottom-1 -right-1 bg-background rounded-full p-1" />
                             </div>
                         </div>
+                        <div>
+                            <CardTitle className="text-2xl font-bold">Secure Admin Access</CardTitle>
+                            <CardDescription className="mt-2">
+                                Please log in with your F3 credentials to access admin tools.
+                            </CardDescription>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-6">
+                        {error && (
+                            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md">
+                                <p className="text-destructive text-sm">{error}</p>
+                            </div>
+                        )}
+
+                        <div className="text-center">
+                            <Button
+                                onClick={handleLogin}
+                                className="w-full"
+                                size="lg"
+                            >
+                                Login with F3 Nation
+                            </Button>
+                        </div>
                     </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button onClick={handlePasswordSubmit}>Access Panel</Button>
-                    </CardFooter>
                 </Card>
             </div>
         );

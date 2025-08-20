@@ -1,13 +1,6 @@
 import type { NextConfig } from 'next';
-import type { Configuration } from 'webpack';
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [
       {
@@ -18,34 +11,43 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  webpack: (
-    config: Configuration,
-    { isServer }
-  ): Configuration => {
-    if (!isServer) {
-      config.resolve = {
-        ...(config.resolve || {}),
-        fallback: {
-          ...(config.resolve?.fallback || {}),
-          dns: false,
-          fs: false,
-          net: false,
-          tls: false,
-          'pg-native': false,
-        },
-      };
-    }
-    return config;
-  },
-
-  // This is for development
-  allowedDevOrigins: [
-    'https://3000-firebase-the-codex-1753381827295.cluster-pgviq6mvsncnqxx6kr7pbz65v6.cloudworkstations.dev',
-  ],
-
-
-  env: {
-    DATABASE_URL: process.env.DATABASE_URL,
+  async headers() {
+    return [
+      {
+        source: '/callback/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: 'https://auth.f3nation.com',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+      {
+        source: '/api/callback/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: 'https://auth.f3nation.com',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization',
+          },
+        ],
+      },
+    ];
   },
 };
 

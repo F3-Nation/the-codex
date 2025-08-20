@@ -136,7 +136,7 @@ async function processCsvRows(rows: ExiconCsvRow[], client: PoolClient): Promise
                 entryType: ENTRY_TYPE_EXICON,
                 tags: tags, // This is already string[] as expected by NewEntrySuggestionData
                 videoLink: videoLink,
-                timestamp: Date.now().toString(), // Use current timestamp as string
+                mentionedEntries: [], // Required field, empty array for CSV imports
             },
             submitterName: SUBMITTER_NAME,
             submitterEmail: SUBMITTER_EMAIL,

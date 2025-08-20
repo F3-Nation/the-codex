@@ -6,8 +6,8 @@ import type { LexiconEntry } from '@/lib/types';
 import Link from 'next/link';
 import { getEntryByIdFromDatabase } from '@/lib/api';
 
-export default async function LexiconEntryPage({ params }: { params: { entryId: string } }) {
-    const entryId = params.entryId;
+export default async function LexiconEntryPage({ params }: { params: Promise<{ entryId: string }> }) {
+    const { entryId } = await params;
 
     const entry = await getEntryByIdFromDatabase(entryId);
 

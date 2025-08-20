@@ -1,7 +1,51 @@
+# Settings for Backend (on Cloud Run).
+# See https://firebase.google.com/docs/app-hosting/configure#cloud-run
 runConfig:
   minInstances: 0
+  # maxInstances: 100
+  # concurrency: 80
+  # cpu: 1
+  # memoryMiB: 512
+
+# Environment variables and secrets.
 env:
   - variable: DATABASE_URL
-    secret: client-database-url
+    secret: codex-database-url
     availability:
       - BUILD
+      - RUNTIME
+  - variable: NEXTAUTH_SECRET
+    secret: codex-nextauth-secret
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: AUTH_PROVIDER_URL
+    secret: codex-auth-provider-url
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXTAUTH_URL
+    secret: codex-nextauth-url
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_NEXTAUTH_URL
+    secret: codex-next-public-nextauth-url
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: OAUTH_REDIRECT_URI
+    secret: codex-oauth-redirect-uri
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: OAUTH_CLIENT_ID
+    secret: codex-oauth-client-id
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: OAUTH_CLIENT_SECRET
+    secret: codex-oauth-client-secret
+    availability:
+      - BUILD
+      - RUNTIME

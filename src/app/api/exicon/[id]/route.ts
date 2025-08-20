@@ -5,10 +5,11 @@ import { getEntryByIdFromDatabase } from '@/lib/api';
 // Define the handler for GET requests
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const entryId = params.id;
+        const { id } = await params;
+        const entryId = id;
 
         const entry = await getEntryByIdFromDatabase(entryId);
 
