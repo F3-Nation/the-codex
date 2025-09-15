@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { copyToClipboard } from '@/lib/clipboard';
 import { Copy } from 'lucide-react';
 
 interface CopyLinkButtonProps {
@@ -13,17 +14,16 @@ export default function CopyLinkButton({ videoLink }: CopyLinkButtonProps) {
 
     const handleCopyVideoLink = async () => {
         if (videoLink) {
-            try {
-                await navigator.clipboard.writeText(videoLink);
+            const success = await copyToClipboard(videoLink);
+
+            if (success) {
                 toast({ title: "Video Link Copied!", description: "The video link has been copied to your clipboard." });
-            } catch {
-                const textarea = document.createElement('textarea');
-                textarea.value = videoLink;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                toast({ title: "Video Link Copied!", description: "The video link has been copied to your clipboard." });
+            } else {
+                toast({
+                    title: "Failed to Copy",
+                    description: "Could not copy the video link.",
+                    variant: "destructive"
+                });
             }
         }
     };

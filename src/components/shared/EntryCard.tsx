@@ -4,7 +4,7 @@ import type { AnyEntry, ExiconEntry } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { IframeDialog as Dialog, IframeDialogContent as DialogContent, IframeDialogHeader as DialogHeader, IframeDialogTitle as DialogTitle, IframeDialogTrigger as DialogTrigger, IframeDialogClose as DialogClose, IframeDialogDescription as DialogDescription } from '@/components/ui/iframe-dialog';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Pencil, Copy, ExternalLink, XCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { SuggestionEditForm } from '@/components/submission/SuggestionEditForm';
 import { useToast } from '@/hooks/use-toast';
 import { getYouTubeEmbedUrl } from '@/lib/utils';
+import { copyToClipboard } from '@/lib/clipboard';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EntryCardProps {
@@ -216,10 +217,11 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const handleCopyVideoLink = async () => {
     if (entry.type === 'exicon' && (entry as ExiconEntry).videoLink) {
-      try {
-        await navigator.clipboard.writeText((entry as ExiconEntry).videoLink!);
+      const success = await copyToClipboard((entry as ExiconEntry).videoLink!);
+
+      if (success) {
         toast({ title: "Video Link Copied!", description: "The video link has been copied to your clipboard." });
-      } catch {
+      } else {
         toast({ title: "Failed to Copy", description: "Could not copy the video link.", variant: "destructive" });
       }
     }
@@ -229,10 +231,12 @@ export function EntryCard({ entry }: EntryCardProps) {
     event.stopPropagation();
     const encodedId = encodeURIComponent(entry.id);
     const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${encodedId}`;
-    try {
-      await navigator.clipboard.writeText(url);
+
+    const success = await copyToClipboard(url);
+
+    if (success) {
       toast({ title: `${entry.name} URL Copied!`, description: "The link has been copied to your clipboard." });
-    } catch {
+    } else {
       toast({ title: "Failed to Copy URL", description: "Could not copy the entry URL.", variant: "destructive" });
     }
   };
