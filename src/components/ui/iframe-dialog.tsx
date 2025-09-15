@@ -15,18 +15,37 @@ const IframeDialogPortal = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Portal>
 >(({ container, ...props }, _ref) => {
   const [isIframe, setIsIframe] = React.useState(false)
+  const [portalContainer, setPortalContainer] = React.useState<Element | null>(null)
 
   React.useEffect(() => {
-    setIsIframe(isInIframe())
-  }, [])
+    const inIframe = isInIframe()
+    setIsIframe(inIframe)
 
-  // If in iframe and no specific container provided, use document.body
-  const portalContainer = React.useMemo(() => {
-    if (container) return container
-    if (isIframe && typeof document !== 'undefined') {
-      return document.body
+    if (typeof document !== 'undefined') {
+      if (container) {
+        setPortalContainer(container as Element)
+      } else if (inIframe) {
+        // For iframe, create or find a high z-index container
+        let modalRoot = document.getElementById('iframe-modal-root')
+        if (!modalRoot) {
+          modalRoot = document.createElement('div')
+          modalRoot.id = 'iframe-modal-root'
+          modalRoot.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2147483647;
+          `
+          document.body.appendChild(modalRoot)
+        }
+        setPortalContainer(modalRoot)
+      } else {
+        setPortalContainer(document.body)
+      }
     }
-    return undefined
   }, [container, isIframe])
 
   return (
@@ -53,10 +72,15 @@ const IframeDialogOverlay = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        // Higher z-index for iframe usage
-        isIframe ? "z-[999999]" : "z-50",
+        // Much higher z-index for iframe usage
+        isIframe ? "!z-[2147483646] !important" : "z-50",
         className
       )}
+      style={isIframe ? {
+        zIndex: 2147483646,
+        position: 'fixed',
+        pointerEvents: 'auto'
+      } : undefined}
       {...props}
     />
   )
@@ -70,20 +94,33 @@ const IframeDialogContent = React.forwardRef<
   const [isIframe, setIsIframe] = React.useState(false)
 
   React.useEffect(() => {
-    setIsIframe(isInIframe())
+    const inIframe = isInIframe()
+    setIsIframe(inIframe)
+    // Debug logging
+    if (typeof window !== 'undefined') {
+      console.log('IframeDialogContent: isInIframe =', inIframe)
+    }
   }, [])
+
+  const modalClassName = cn(
+    "fixed left-[50%] top-[50%] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+    // Much higher z-index for iframe usage and force position
+    isIframe ? "!z-[2147483647] !important" : "z-50",
+    className
+  )
 
   return (
     <IframeDialogPortal>
       <IframeDialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
-        className={cn(
-          "fixed left-[50%] top-[50%] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-          // Higher z-index for iframe usage
-          isIframe ? "z-[999999]" : "z-50",
-          className
-        )}
+        className={modalClassName}
+        style={isIframe ? {
+          zIndex: 2147483647,
+          position: 'fixed',
+          isolation: 'isolate',
+          pointerEvents: 'auto'
+        } : undefined}
         {...props}
       >
         {children}
