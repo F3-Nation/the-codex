@@ -24,8 +24,7 @@ const IframeDialogPortal = React.forwardRef<
     if (typeof document !== 'undefined') {
       if (container) {
         setPortalContainer(container as Element)
-      } else if (inIframe) {
-        // For iframe, create or find a high z-index container
+      } else {
         let modalRoot = document.getElementById('iframe-modal-root')
         if (!modalRoot) {
           modalRoot = document.createElement('div')
@@ -38,12 +37,11 @@ const IframeDialogPortal = React.forwardRef<
             height: 100%;
             pointer-events: none;
             z-index: 2147483647;
+            overflow: visible;
           `
           document.body.appendChild(modalRoot)
         }
         setPortalContainer(modalRoot)
-      } else {
-        setPortalContainer(document.body)
       }
     }
   }, [container, isIframe])
@@ -72,15 +70,25 @@ const IframeDialogOverlay = React.forwardRef<
       ref={ref}
       className={cn(
         "fixed inset-0 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        // Much higher z-index for iframe usage
-        isIframe ? "!z-[2147483646] !important" : "z-50",
+        // Always use maximum z-index
+        "!z-[2147483646] !important",
         className
       )}
-      style={isIframe ? {
+      style={{
         zIndex: 2147483646,
         position: 'fixed',
-        pointerEvents: 'auto'
-      } : undefined}
+        pointerEvents: 'auto',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        // Break out of any parent clipping
+        clipPath: 'none',
+        clip: 'auto',
+        overflow: 'visible',
+        visibility: 'visible',
+        opacity: 0.8
+      }}
       {...props}
     />
   )
@@ -96,16 +104,21 @@ const IframeDialogContent = React.forwardRef<
   React.useEffect(() => {
     const inIframe = isInIframe()
     setIsIframe(inIframe)
-    // Debug logging
+    // Debug logging with more details
     if (typeof window !== 'undefined') {
       console.log('IframeDialogContent: isInIframe =', inIframe)
+      console.log('window.parent:', window.parent)
+      console.log('window.top:', window.top)
+      console.log('document.domain:', document.domain)
+      console.log('window.location.ancestorOrigins:', window.location.ancestorOrigins)
     }
   }, [])
 
+  // Always use maximum z-index and force all necessary styles
   const modalClassName = cn(
     "fixed left-[50%] top-[50%] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-    // Much higher z-index for iframe usage and force position
-    isIframe ? "!z-[2147483647] !important" : "z-50",
+    // Always use maximum z-index to ensure visibility in any context
+    "!z-[2147483647] !important",
     className
   )
 
@@ -115,12 +128,23 @@ const IframeDialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={modalClassName}
-        style={isIframe ? {
+        style={{
           zIndex: 2147483647,
           position: 'fixed',
           isolation: 'isolate',
-          pointerEvents: 'auto'
-        } : undefined}
+          pointerEvents: 'auto',
+          transform: 'translate(-50%, -50%)',
+          left: '50%',
+          top: '50%',
+          // Break out of any parent clipping
+          clipPath: 'none',
+          clip: 'auto',
+          overflow: 'visible',
+          // Ensure the modal is always visible
+          visibility: 'visible',
+          opacity: 1,
+          display: 'grid'
+        }}
         {...props}
       >
         {children}
