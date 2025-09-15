@@ -1,6 +1,7 @@
 /**
  * Utility functions for clipboard operations with iframe support
  */
+import { notifyClipboardSuccess, notifyClipboardError } from './iframe-bridge';
 
 /**
  * Attempts to copy text to clipboard with fallback for iframe environments
@@ -8,10 +9,18 @@
  * @returns Promise<boolean> - Success status
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
+  const inIframe = isInIframe();
+
   // First try the modern clipboard API
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
+
+      // Notify parent if in iframe
+      if (inIframe) {
+        notifyClipboardSuccess(text);
+      }
+
       return true;
     } catch (err) {
       console.warn('Clipboard API failed, trying fallback:', err);
@@ -34,9 +43,25 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     const success = document.execCommand('copy');
     document.body.removeChild(textarea);
 
+    // Notify parent if in iframe
+    if (inIframe) {
+      if (success) {
+        notifyClipboardSuccess(text);
+      } else {
+        notifyClipboardError('Failed to copy using fallback method');
+      }
+    }
+
     return success;
   } catch (err) {
-    console.error('All clipboard methods failed:', err);
+    const errorMsg = `All clipboard methods failed: ${err}`;
+    console.error(errorMsg);
+
+    // Notify parent if in iframe
+    if (inIframe) {
+      notifyClipboardError(errorMsg);
+    }
+
     return false;
   }
 }
