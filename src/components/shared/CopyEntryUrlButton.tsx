@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { copyToClipboard } from '@/lib/clipboard';
+import { copyToClipboard, isInIframe } from '@/lib/clipboard';
+import { showParentToast } from '@/lib/iframe-bridge';
 import type { AnyEntry } from '@/lib/types';
 
 interface CopyEntryUrlButtonProps {
@@ -20,20 +21,40 @@ export function CopyEntryUrlButton({ entry }: CopyEntryUrlButtonProps) {
     const url = `https://f3nation.com/${entry.type === 'exicon' ? 'exicon' : 'lexicon'}/${encodedId}`;
 
     const success = await copyToClipboard(url);
+    const inIframe = isInIframe();
 
     if (success) {
-      toast({
-        title: `${entry.name} URL Copied!`,
-        description: "The link has been copied to your clipboard."
-      });
+      if (inIframe) {
+        // Toast notification will be handled by parent via iframe-bridge
+        showParentToast({
+          title: `${entry.name} URL Copied!`,
+          description: "The link has been copied to your clipboard."
+        });
+      } else {
+        // Normal toast for non-iframe context
+        toast({
+          title: `${entry.name} URL Copied!`,
+          description: "The link has been copied to your clipboard."
+        });
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } else {
-      toast({
-        title: "Failed to Copy URL",
-        description: "Could not copy the entry URL.",
-        variant: "destructive"
-      });
+      if (inIframe) {
+        // Error notification will be handled by parent via iframe-bridge
+        showParentToast({
+          title: "Failed to Copy URL",
+          description: "Could not copy the entry URL.",
+          variant: "destructive"
+        });
+      } else {
+        // Normal error toast for non-iframe context
+        toast({
+          title: "Failed to Copy URL",
+          description: "Could not copy the entry URL.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
