@@ -124,7 +124,7 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
           <div className="max-w-4xl mx-auto">
             <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-              <Link href="/lexicon-2">
+              <Link href="https://f3nation.com/lexicon-2">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lexicon
               </Link>
             </Button>

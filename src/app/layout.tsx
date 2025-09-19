@@ -29,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen relative`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col relative`}
         suppressHydrationWarning={true}
       >
         <ConditionalLayout>{children}</ConditionalLayout>
@@ -39,6 +39,7 @@ export default function RootLayout({
           {`
             let lastHeight = 0;
             let isInIframe = false;
+            let resizeObserver = null;
 
             // Check if we're in an iframe
             try {
@@ -47,40 +48,78 @@ export default function RootLayout({
               isInIframe = true;
             }
 
-            // Remove min-height constraint when in iframe to prevent double scroll
+            // Remove height constraints when in iframe to prevent double scroll
             if (isInIframe) {
               document.documentElement.style.height = 'auto';
+              document.documentElement.style.minHeight = 'auto';
               document.body.style.minHeight = 'auto';
               document.body.style.height = 'auto';
+
+              // Remove any overflow constraints
+              document.documentElement.style.overflow = 'visible';
+              document.body.style.overflow = 'visible';
             }
 
-            function sendHeight() {
-              const height = Math.max(
-                document.documentElement.scrollHeight,
-                document.documentElement.offsetHeight,
-                document.body.scrollHeight,
-                document.body.offsetHeight
-              );
+            function getAccurateHeight() {
+              // Wait for layout to settle
+              return new Promise((resolve) => {
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    const height = Math.max(
+                      document.documentElement.scrollHeight,
+                      document.documentElement.offsetHeight,
+                      document.body.scrollHeight,
+                      document.body.offsetHeight
+                    );
+                    resolve(height);
+                  });
+                });
+              });
+            }
 
-              if (height !== lastHeight && isInIframe) {
+            async function sendHeight() {
+              if (!isInIframe) return;
+
+              const height = await getAccurateHeight();
+
+              if (height !== lastHeight && height > 0) {
                 lastHeight = height;
+
+                // Send additional device context for responsive handling
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                              || window.innerWidth <= 768;
+
                 window.parent.postMessage({
                   type: 'frameHeight',
-                  frameHeight: height
-                }, "https://f3nation.com");
+                  data: height,
+                  deviceInfo: {
+                    isMobile: isMobile,
+                    viewportWidth: window.innerWidth,
+                    viewportHeight: window.innerHeight,
+                    isLandscape: window.innerWidth > window.innerHeight
+                  }
+                }, "*");
               }
             }
 
             if (isInIframe) {
-              // Send height on various events
-              window.addEventListener("load", sendHeight);
+              // Send height on key events
+              window.addEventListener("load", () => setTimeout(sendHeight, 100));
               window.addEventListener("resize", sendHeight);
               window.addEventListener("DOMContentLoaded", sendHeight);
 
+              // Use ResizeObserver for more accurate height detection
+              if (window.ResizeObserver) {
+                resizeObserver = new ResizeObserver(() => {
+                  setTimeout(sendHeight, 50);
+                });
+                resizeObserver.observe(document.body);
+                resizeObserver.observe(document.documentElement);
+              }
+
               // Enhanced mutation observer for content changes
               const observer = new MutationObserver(() => {
-                // Debounce the height calculation
-                setTimeout(sendHeight, 100);
+                setTimeout(sendHeight, 50);
               });
 
               observer.observe(document.body, {
@@ -91,11 +130,11 @@ export default function RootLayout({
                 characterData: true
               });
 
-              // Additional polling as fallback
-              setInterval(sendHeight, 1000);
-
-              // Initial height send
+              // Initial height sends with progressive delays
+              setTimeout(sendHeight, 100);
               setTimeout(sendHeight, 500);
+              setTimeout(sendHeight, 1000);
+              setTimeout(sendHeight, 2000);
             }
           `}
         </Script>

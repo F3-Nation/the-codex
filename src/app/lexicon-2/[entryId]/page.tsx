@@ -55,48 +55,48 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 }
 
 export default async function LexiconEntryPage({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-    const { entryId: rawEntryId } = await params;
-    const searchParamsResolved = await searchParams;
-    const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
+  const { entryId: rawEntryId } = await params;
+  const searchParamsResolved = await searchParams;
+  const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
 
-    const entry = await getEntryByIdFromDatabase(entryId);
+  const entry = await getEntryByIdFromDatabase(entryId);
 
-    if (!entry) {
-        notFound();
-    }
+  if (!entry) {
+    notFound();
+  }
 
-    if (entry.type !== 'lexicon') {
-        notFound();
-    }
+  if (entry.type !== 'lexicon') {
+    notFound();
+  }
 
-    const lexiconEntry = entry as LexiconEntry;
+  const lexiconEntry = entry as LexiconEntry;
 
-    return (
-        <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
-            <div className="max-w-4xl mx-auto">
-                <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-                    <Link href="/lexicon-2">
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lexicon
-                    </Link>
-                </Button>
-                <Card className="shadow-lg rounded-lg">
-                    <CardHeader className="border-b">
-                        <CardTitle className="text-3xl font-bold">{lexiconEntry.name}</CardTitle>
-                        <CardDescription className="text-lg text-muted-foreground mt-2">
-                            Term
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                        <h3 className="text-xl font-semibold mb-2">Description</h3>
-                        <p className="text-gray-700 dark:text-gray-300 mb-6">{lexiconEntry.description}</p>
+  return (
+    <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
+      <div className="max-w-4xl mx-auto">
+        <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
+          <Link href="https://f3nation.com/lexicon-2">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Lexicon
+          </Link>
+        </Button>
+        <Card className="shadow-lg rounded-lg">
+          <CardHeader className="border-b">
+            <CardTitle className="text-3xl font-bold">{lexiconEntry.name}</CardTitle>
+            <CardDescription className="text-lg text-muted-foreground mt-2">
+              Term
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-6">
+            <h3 className="text-xl font-semibold mb-2">Description</h3>
+            <p className="text-gray-700 dark:text-gray-300 mb-6">{lexiconEntry.description}</p>
 
-                        <div className="flex justify-end gap-2">
-                            <CopyEntryUrlButton entry={lexiconEntry} />
-                            <SuggestEditsButton entry={lexiconEntry} />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="flex justify-end gap-2">
+              <CopyEntryUrlButton entry={lexiconEntry} />
+              <SuggestEditsButton entry={lexiconEntry} />
             </div>
-        </div>
-    );
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }

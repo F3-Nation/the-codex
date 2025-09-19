@@ -13,49 +13,49 @@ import { SuggestEditsButton } from '@/components/shared/SuggestEditsButton';
 import { CopyEntryUrlButton } from '@/components/shared/CopyEntryUrlButton';
 
 export async function generateMetadata({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
-  const { entryId: rawEntryId } = await params;
-  const searchParamsResolved = await searchParams;
-  const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
-  const entry = await getEntryByIdFromDatabase(entryId);
+    const { entryId: rawEntryId } = await params;
+    const searchParamsResolved = await searchParams;
+    const entryId = searchParamsResolved.entryId ? decodeURIComponent(String(searchParamsResolved.entryId)) : decodeURIComponent(rawEntryId);
+    const entry = await getEntryByIdFromDatabase(entryId);
 
-  if (!entry || entry.type !== 'exicon') {
+    if (!entry || entry.type !== 'exicon') {
+        return {
+            title: 'Entry Not Found - F3 Exicon',
+            description: 'The requested exicon entry could not be found.',
+        };
+    }
+
+    const exiconEntry = entry as ExiconEntry;
+    const title = `${exiconEntry.name} - F3 Exicon`;
+    const description = exiconEntry.description || `Learn about the ${exiconEntry.name} exercise in the F3 Exicon.`;
+    const url = `https://f3nation.com/exicon/${entryId}`;
+    const tags = exiconEntry.tags?.map(tag => tag.name).join(', ') || '';
+
     return {
-      title: 'Entry Not Found - F3 Exicon',
-      description: 'The requested exicon entry could not be found.',
-    };
-  }
-
-  const exiconEntry = entry as ExiconEntry;
-  const title = `${exiconEntry.name} - F3 Exicon`;
-  const description = exiconEntry.description || `Learn about the ${exiconEntry.name} exercise in the F3 Exicon.`;
-  const url = `https://f3nation.com/exicon/${entryId}`;
-  const tags = exiconEntry.tags?.map(tag => tag.name).join(', ') || '';
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description: tags ? `${description} Tags: ${tags}` : description,
-      url,
-      siteName: 'F3 Nation Codex',
-      type: 'article',
-      images: [
-        {
-          url: '/og-exicon.png',
-          width: 1200,
-          height: 630,
-          alt: `${exiconEntry.name} - F3 Exicon Exercise`,
+        title,
+        description,
+        openGraph: {
+            title,
+            description: tags ? `${description} Tags: ${tags}` : description,
+            url,
+            siteName: 'F3 Nation Codex',
+            type: 'article',
+            images: [
+                {
+                    url: '/og-exicon.png',
+                    width: 1200,
+                    height: 630,
+                    alt: `${exiconEntry.name} - F3 Exicon Exercise`,
+                },
+            ],
         },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description: tags ? `${description} Tags: ${tags}` : description,
-      images: ['/og-exicon.png'],
-    },
-  };
+        twitter: {
+            card: 'summary_large_image',
+            title,
+            description: tags ? `${description} Tags: ${tags}` : description,
+            images: ['/og-exicon.png'],
+        },
+    };
 }
 
 export default async function ExiconEntryPage({ params, searchParams }: { params: Promise<{ entryId: string }>, searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -80,7 +80,7 @@ export default async function ExiconEntryPage({ params, searchParams }: { params
         <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
             <div className="max-w-4xl mx-auto">
                 <Button asChild variant="ghost" className="mb-6 text-blue-500 hover:text-blue-600">
-                    <Link href="/exicon">
+                    <Link href="https://f3nation.com/exicon">
                         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Exicon
                     </Link>
                 </Button>
