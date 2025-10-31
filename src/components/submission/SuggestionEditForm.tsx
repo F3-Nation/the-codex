@@ -47,7 +47,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
         const tags = await fetchAllTags();
         setAvailableTags(tags.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (error) {
-        console.error("Failed to load tags for suggestion form:", error);
+
         toast({ title: "Error loading tags", description: "Could not load tags for the form.", variant: "destructive" });
       } finally {
         setIsLoadingTags(false);
@@ -86,10 +86,10 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
               type: fullEntry.type,
             });
           } else {
-            console.error(`Entry with ID ${mention.id} not found.`);
+
           }
         } catch (error) {
-          console.error(`Error fetching entry with ID ${mention.id}:`, error);
+
         }
       }
 
@@ -172,7 +172,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
       onFormSubmit(editDataPayload);
       onClose();
     } catch (error) {
-      console.error("Error submitting edit suggestion:", error);
+
       toast({ title: "Submission Failed", description: "Could not submit your edit suggestion. Please try again.", variant: "destructive" });
     }
   };
@@ -232,7 +232,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
               <div className="space-y-2">
                 <Label htmlFor="suggestedDescription">Suggested Description</Label>
                 <p className="text-sm text-muted-foreground">
-                  You can reference other entries by typing <span className="font-mono text-destructive">@</span>.
+                  Type <span className="font-mono text-destructive font-semibold">@</span> to mention and link to other entries in the description.
                 </p>
                 <MentionTextArea
                   value={suggestedDescription}

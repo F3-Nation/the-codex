@@ -43,7 +43,7 @@ export function SubmissionFormContent() {
         const tags = await fetchAllTags();
         setAvailableTags(tags.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (error) {
-        console.error("Failed to load tags for submission form:", error);
+
         toast({ title: "Error loading tags", description: "Could not load tags for the form.", variant: "destructive" });
       } finally {
         setIsLoadingTags(false);
@@ -71,10 +71,10 @@ export function SubmissionFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !description) {
+    if (!name || !description || !submitterName || !submitterEmail) {
       toast({
         title: "Missing Information",
-        description: "Please provide at least a name and description.",
+        description: "Please provide your name, email, entry name, and description.",
         variant: "destructive",
       });
       return;
@@ -95,8 +95,8 @@ export function SubmissionFormContent() {
     const submissionPayload: NewUserSubmission<NewEntrySuggestionData> = {
       submissionType: 'new',
       data: newEntryData,
-      submitterName: submitterName || undefined,
-      submitterEmail: submitterEmail || undefined,
+      submitterName: submitterName,
+      submitterEmail: submitterEmail,
     };
 
     try {
@@ -107,7 +107,7 @@ export function SubmissionFormContent() {
       });
       resetForm();
     } catch (error) {
-      console.error("Error submitting new entry:", error);
+
       toast({ title: "Submission Failed", description: "Could not submit your entry. Please try again.", variant: "destructive" });
     }
   };
@@ -135,12 +135,12 @@ export function SubmissionFormContent() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="submitterName">Your Name (Optional)</Label>
-              <Input id="submitterName" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} />
+              <Label htmlFor="submitterName">Your Name <span className="text-destructive">*</span></Label>
+              <Input id="submitterName" value={submitterName} onChange={(e) => setSubmitterName(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="submitterEmail">Your Email (Optional)</Label>
-              <Input id="submitterEmail" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} />
+              <Label htmlFor="submitterEmail">Your Email <span className="text-destructive">*</span></Label>
+              <Input id="submitterEmail" type="email" value={submitterEmail} onChange={(e) => setSubmitterEmail(e.target.value)} required />
             </div>
           </div>
 
@@ -167,6 +167,9 @@ export function SubmissionFormContent() {
 
           <div className="space-y-2">
             <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
+            <p className="text-sm text-muted-foreground">
+              Type <span className="font-mono text-destructive font-semibold">@</span> to mention and link to other entries in the description.
+            </p>
             <MentionTextArea
               value={description}
               onChange={setDescription}
