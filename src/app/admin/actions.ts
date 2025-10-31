@@ -30,34 +30,30 @@ async function sendStatusUpdateNotification(
   status: 'approved' | 'rejected'
 ) {
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('SENDGRID_API_KEY not configured - skipping status update email');
+
     return;
   }
 
   if (!process.env.FROM_EMAIL) {
-    console.warn('FROM_EMAIL not configured - skipping status update email');
+
     return;
   }
 
-  if (!submission.submitterEmail) {
-    console.log('No submitter email provided - skipping status update email');
-    return;
-  }
+  const isEdit = submission.submissionType === 'edit';
+  const entryName = isEdit
+    ? (submission.data as EditEntrySuggestionData).entryName
+    : (submission.data as NewEntrySuggestionData).name;
 
   try {
-    const isEdit = submission.submissionType === 'edit';
-    const entryName = isEdit
-      ? (submission.data as EditEntrySuggestionData).entryName
-      : (submission.data as NewEntrySuggestionData).name;
-
-    const msg = {
+    // Email to submitter
+    const submitterMsg = {
       to: submission.submitterEmail,
       from: process.env.FROM_EMAIL!,
       subject: `Submission ${status === 'approved' ? 'Approved' : 'Update'}: ${entryName}`,
       html: status === 'approved'
         ? `
           <h2>Great news!</h2>
-          <p>Hi ${submission.submitterName || 'there'},</p>
+          <p>Hi ${submission.submitterName},</p>
           <p>Your ${isEdit ? 'edit suggestion' : 'entry suggestion'} for "<strong>${entryName}</strong>" has been <strong>approved</strong> and is now live!</p>
           <p>Thank you for contributing to the F3 community.</p>
           <br>
@@ -65,27 +61,53 @@ async function sendStatusUpdateNotification(
         `
         : `
           <h2>Submission Update</h2>
-          <p>Hi ${submission.submitterName || 'there'},</p>
+          <p>Hi ${submission.submitterName},</p>
           <p>Thank you for your ${isEdit ? 'edit suggestion' : 'entry suggestion'} for "<strong>${entryName}</strong>".</p>
           <p>After careful review, we've decided not to implement this suggestion at this time.</p>
           <p>We appreciate your contribution and encourage you to keep sharing ideas with the F3 community.</p>
         `
     };
 
-    console.log(`Sending ${status} notification email to: ${submission.submitterEmail}`);
-    await sgMail.send(msg);
-    console.log(`${status} notification email sent successfully to: ${submission.submitterEmail}`);
+
+    await sgMail.send(submitterMsg);
+
+
+    // Email to admin for record-keeping
+    const adminMsg = {
+      to: process.env.FROM_EMAIL!,
+      from: process.env.FROM_EMAIL!,
+      subject: `Submission ${status === 'approved' ? '✅ Approved' : '❌ Rejected'}: ${entryName}`,
+      html: `
+        <h2>Submission ${status === 'approved' ? 'Approved' : 'Rejected'}</h2>
+        <p><strong>Action:</strong> ${status === 'approved' ? '✅ APPROVED' : '❌ REJECTED'}</p>
+        <p><strong>Type:</strong> ${isEdit ? 'Edit Suggestion' : 'New Entry'}</p>
+        <p><strong>Entry:</strong> ${entryName}</p>
+        <p><strong>Submitter:</strong> ${submission.submitterName} (${submission.submitterEmail})</p>
+        <p><strong>Submission ID:</strong> ${submission.id}</p>
+        <br>
+        ${status === 'approved'
+          ? '<p style="color: #22c55e; font-weight: bold;">✅ This entry is now live in the Codex!</p>'
+          : '<p style="color: #ef4444;">This submission has been declined.</p>'}
+        <hr>
+        <p style="color: #666; font-size: 12px;">
+          This is an automated notification for admin record-keeping.
+        </p>
+      `
+    };
+
+
+    await sgMail.send(adminMsg);
+
+
   } catch (error) {
-    console.error('Error sending status update email:', error);
+
     console.error('Status update email error details:', {
       hasApiKey: !!process.env.SENDGRID_API_KEY,
       hasFromEmail: !!process.env.FROM_EMAIL,
       submitterEmail: submission.submitterEmail,
       submitterName: submission.submitterName,
       status,
-      entryName: submission.submissionType === 'edit'
-        ? (submission.data as EditEntrySuggestionData).entryName
-        : (submission.data as NewEntrySuggestionData).name
+      entryName
     });
   }
 }
@@ -168,7 +190,7 @@ export async function updateSubmissionStatusInDatabase(
     });
     await sendStatusUpdateNotification(submission, status);
   } else {
-    console.log(`Skipping email notification - submission: ${!!submission}, status: ${status}`);
+
   }
 }
 

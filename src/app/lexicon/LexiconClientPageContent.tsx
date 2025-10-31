@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { AnyEntry, LexiconEntry } from '@/lib/types';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
@@ -54,8 +55,46 @@ interface LexiconClientPageContentProps {
 }
 
 export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageContentProps) => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLetter, setFilterLetter] = useState('All');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Parse URL parameters on mount
+  useEffect(() => {
+    const searchParam = searchParams.get('search');
+    const letterParam = searchParams.get('letter');
+
+    if (searchParam) {
+      setSearchTerm(searchParam);
+    }
+
+    if (letterParam && letterParam.length === 1) {
+      setFilterLetter(letterParam.toUpperCase());
+    }
+
+    setIsInitialized(true);
+  }, [searchParams]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const params = new URLSearchParams();
+
+    if (searchTerm) {
+      params.set('search', searchTerm);
+    }
+
+    if (filterLetter !== 'All') {
+      params.set('letter', filterLetter);
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/lexicon';
+    router.replace(newUrl, { scroll: false });
+  }, [searchTerm, filterLetter, isInitialized, router]);
 
   // Function to handle the letter filter button clicks
   const handleFilterLetterChange = (letter: string) => {

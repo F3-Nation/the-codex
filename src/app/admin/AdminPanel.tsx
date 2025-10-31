@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, Edit, Trash2, ShieldCheck, Inbox, Tag as TagIcon, CheckCircle, XCircle, Eye, LogOut, Flame, Lock } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ShieldCheck, Inbox, Tag as TagIcon, CheckCircle, XCircle, Eye, LogOut, Flame, Lock, Pencil, Save, X } from 'lucide-react';
 import type { AnyEntry, Tag, NewEntrySuggestionData, EditEntrySuggestionData, ExiconEntry, UserSubmissionBase, Alias } from '@/lib/types';
 import {
     Dialog,
@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     createEntryInDatabase,
     updateEntryInDatabase,
@@ -77,6 +78,8 @@ export default function AdminPanel() {
 
     const [userSubmissions, setUserSubmissions] = useState<UserSubmissionBase<any>[]>([]);
     const [viewingSubmission, setViewingSubmission] = useState<UserSubmissionBase<any> | undefined>(undefined);
+    const [editedSubmissionData, setEditedSubmissionData] = useState<NewEntrySuggestionData | EditEntrySuggestionData | undefined>(undefined);
+    const [isEditingSubmission, setIsEditingSubmission] = useState(false);
     const [originalEntryForEditView, setOriginalEntryForEditView] = useState<AnyEntry | null>(null);
     const [isLoadingOriginalEntry, setIsLoadingOriginalEntry] = useState(false);
     const [isSubmissionDetailOpen, setIsSubmissionDetailOpen] = useState(false);
@@ -141,12 +144,12 @@ export default function AdminPanel() {
                         setUserInfo(parsedUserInfo);
                         setIsAuthenticated(true);
                     } catch (err) {
-                        console.error('Failed to parse stored user info:', err);
+
                         localStorage.removeItem('user_info');
                     }
                 }
             } catch (err) {
-                console.error('Failed to load OAuth configuration:', err);
+
                 setError('Failed to load OAuth configuration');
             } finally {
                 setLoading(false);
@@ -170,7 +173,7 @@ export default function AdminPanel() {
             setTags(fetchedTags.sort((a, b) => a.name.localeCompare(b.name)));
             setUserSubmissions(pendingSubmissions);
         } catch (error) {
-            console.error("Error fetching data:", error);
+
             toast({
                 title: "Error Fetching Data",
                 description: "Could not load necessary data from the database.",
@@ -220,7 +223,7 @@ export default function AdminPanel() {
                 toast({ title: "Entry Deleted", description: `"${entry.name}" has been deleted.` });
                 await refetchAllData();
             } catch (error) {
-                console.error("Error deleting entry:", error);
+
                 toast({ title: "Delete Failed", description: `Could not delete entry "${entry.name}".`, variant: "destructive" });
             }
         }
@@ -249,7 +252,7 @@ export default function AdminPanel() {
 
         } catch (error) {
             const action = (editingEntry?.id && editingEntry.id !== '') ? "Updating" : "Creating";
-            console.error(`Error ${action.toLowerCase()} entry:`, error);
+
 
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             toast({
@@ -295,7 +298,7 @@ export default function AdminPanel() {
             setIsTagFormOpen(false);
         } catch (error) {
             const action = editingTag ? "Update" : "Add";
-            console.error(`Error ${action.toLowerCase()}ing tag:`, error);
+
             toast({ title: `${action} Failed`, description: `Could not ${action.toLowerCase()} tag "${newTagName}". Name might be in use or another error occurred.`, variant: "destructive" });
         }
     };
@@ -307,7 +310,7 @@ export default function AdminPanel() {
                 await refetchAllData();
                 toast({ title: "Tag Deleted" });
             } catch (error) {
-                console.error("Error deleting tag:", error);
+
                 toast({ title: "Delete Failed", description: "Could not delete tag.", variant: "destructive" });
             }
         }
@@ -327,6 +330,8 @@ export default function AdminPanel() {
 
     const handleViewSubmission = async (submission: UserSubmissionBase<any>) => {
         setViewingSubmission(submission);
+        setEditedSubmissionData(JSON.parse(JSON.stringify(submission.data))); // Deep clone
+        setIsEditingSubmission(false);
         setOriginalEntryForEditView(null);
         if (submission.submissionType === 'edit') {
             setIsLoadingOriginalEntry(true);
@@ -334,13 +339,32 @@ export default function AdminPanel() {
                 const originalEntry = await fetchEntryById((submission.data as EditEntrySuggestionData).entryId);
                 setOriginalEntryForEditView(originalEntry);
             } catch (error) {
-                console.error("Error fetching original entry for submission view:", error);
+
                 toast({ title: "Error", description: "Could not load original entry details.", variant: "destructive" });
             } finally {
                 setIsLoadingOriginalEntry(false);
             }
         }
         setIsSubmissionDetailOpen(true);
+    };
+
+    const handleStartEditingSubmission = () => {
+        setIsEditingSubmission(true);
+    };
+
+    const handleCancelEditingSubmission = () => {
+        if (viewingSubmission) {
+            setEditedSubmissionData(JSON.parse(JSON.stringify(viewingSubmission.data)));
+        }
+        setIsEditingSubmission(false);
+    };
+
+    const handleSaveSubmissionEdits = () => {
+        if (viewingSubmission && editedSubmissionData) {
+            setViewingSubmission({ ...viewingSubmission, data: editedSubmissionData });
+        }
+        setIsEditingSubmission(false);
+        toast({ title: "Changes Saved", description: "Your edits have been saved. You can now approve the submission." });
     };
 
     const handleApproveSubmission = async (submissionId: number) => {
@@ -353,7 +377,7 @@ export default function AdminPanel() {
                 await refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
             } catch (error) {
-                console.error("Error approving submission:", error);
+
                 toast({ title: "Approval Failed", description: `Could not approve submission ID "${submissionId}". Details: ${(error as Error).message}`, variant: "destructive" });
             }
         }
@@ -368,7 +392,7 @@ export default function AdminPanel() {
                 await refetchAllData();
                 if (viewingSubmission?.id === submissionId) setIsSubmissionDetailOpen(false);
             } catch (error) {
-                console.error("Error rejecting submission:", error);
+
                 toast({ title: "Reject Failed", description: `Could not reject submission ID "${submissionId}".`, variant: "destructive" });
             }
         }
@@ -735,15 +759,24 @@ export default function AdminPanel() {
             <Dialog open={isSubmissionDetailOpen} onOpenChange={setIsSubmissionDetailOpen}>
                 <DialogContent className="sm:max-w-[725px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Submission Details</DialogTitle>
-                        <DialogDescription>
-                            Reviewing {viewingSubmission?.submissionType === 'new' ? 'new entry suggestion' : `edit suggestion for `}
-                            <span className="font-bold">
-                                {viewingSubmission?.submissionType === 'new'
-                                    ? (viewingSubmission.data as NewEntrySuggestionData).name
-                                    : (viewingSubmission?.data as EditEntrySuggestionData)?.entryName}
-                            </span>
-                        </DialogDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <DialogTitle>{isEditingSubmission ? 'Edit Submission' : 'Submission Details'}</DialogTitle>
+                                <DialogDescription>
+                                    {isEditingSubmission ? 'Make any necessary changes before approving' : 'Reviewing'} {viewingSubmission?.submissionType === 'new' ? 'new entry suggestion' : `edit suggestion for `}
+                                    <span className="font-bold">
+                                        {viewingSubmission?.submissionType === 'new'
+                                            ? (viewingSubmission.data as NewEntrySuggestionData).name
+                                            : (viewingSubmission?.data as EditEntrySuggestionData)?.entryName}
+                                    </span>
+                                </DialogDescription>
+                            </div>
+                            {!isEditingSubmission && (
+                                <Button variant="outline" size="sm" onClick={handleStartEditingSubmission}>
+                                    <Pencil className="h-4 w-4 mr-2" /> Edit
+                                </Button>
+                            )}
+                        </div>
                     </DialogHeader>
                     {viewingSubmission && (
                         <div className="space-y-4 py-4">
@@ -773,52 +806,120 @@ export default function AdminPanel() {
                             {viewingSubmission.submissionType === 'new' ? (
                                 <div className="space-y-4">
                                     <h3 className="text-lg font-semibold">New Entry Details</h3>
-                                    <div className="overflow-x-auto border rounded-md">
-                                        <Table>
-                                            <TableBody>
-                                                <TableRow>
-                                                    <TableCell className="font-medium">Name</TableCell>
-                                                    <TableCell>{(viewingSubmission.data as NewEntrySuggestionData).name}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell className="font-medium">Description</TableCell>
-                                                    <TableCell>{(viewingSubmission.data as NewEntrySuggestionData).description}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell className="font-medium">Aliases</TableCell>
-                                                    <TableCell>{formatAliases((viewingSubmission.data as NewEntrySuggestionData).aliases)}</TableCell>
-                                                </TableRow>
-                                                <TableRow>
-                                                    <TableCell className="font-medium">Type</TableCell>
-                                                    <TableCell className="capitalize">{(viewingSubmission.data as NewEntrySuggestionData).entryType}</TableCell>
-                                                </TableRow>
-                                                {(viewingSubmission.data as NewEntrySuggestionData).entryType === 'exicon' && (
-                                                    <>
-                                                        <TableRow>
-                                                            <TableCell className="font-medium">Tags</TableCell>
-                                                            <TableCell>
-                                                                {((viewingSubmission.data as NewEntrySuggestionData).tags || []).length > 0
-                                                                    ? ((viewingSubmission.data as NewEntrySuggestionData).tags || []).map(tagId => tags.find(t => t.id === tagId)?.name || 'Unknown').join(', ')
-                                                                    : 'None'}
-                                                            </TableCell>
-                                                        </TableRow>
-                                                        <TableRow>
-                                                            <TableCell className="font-medium">Video Link</TableCell>
-                                                            <TableCell>{(viewingSubmission.data as NewEntrySuggestionData).videoLink || 'None'}</TableCell>
-                                                        </TableRow>
-                                                    </>
-                                                )}
-                                                <TableRow>
-                                                    <TableCell className="font-medium">References</TableCell>
-                                                    <TableCell>
-                                                        {((viewingSubmission.data as NewEntrySuggestionData).mentionedEntries || []).length > 0
-                                                            ? ((viewingSubmission.data as NewEntrySuggestionData).mentionedEntries || []).join(', ')
-                                                            : 'None'}
-                                                    </TableCell>
-                                                </TableRow>
-                                            </TableBody>
-                                        </Table>
-                                    </div>
+                                    {isEditingSubmission && editedSubmissionData ? (
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="edit-name">Name</Label>
+                                                <Input
+                                                    id="edit-name"
+                                                    value={(editedSubmissionData as NewEntrySuggestionData).name}
+                                                    onChange={(e) => setEditedSubmissionData({ ...editedSubmissionData, name: e.target.value } as NewEntrySuggestionData)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="edit-description">Description</Label>
+                                                <Textarea
+                                                    id="edit-description"
+                                                    value={(editedSubmissionData as NewEntrySuggestionData).description}
+                                                    onChange={(e) => setEditedSubmissionData({ ...editedSubmissionData, description: e.target.value } as NewEntrySuggestionData)}
+                                                    rows={5}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="edit-aliases">Aliases (comma-separated)</Label>
+                                                <Input
+                                                    id="edit-aliases"
+                                                    value={((editedSubmissionData as NewEntrySuggestionData).aliases || []).join(', ')}
+                                                    onChange={(e) => setEditedSubmissionData({
+                                                        ...editedSubmissionData,
+                                                        aliases: e.target.value.split(',').map(a => a.trim()).filter(Boolean)
+                                                    } as NewEntrySuggestionData)}
+                                                />
+                                            </div>
+                                            {(editedSubmissionData as NewEntrySuggestionData).entryType === 'exicon' && (
+                                                <>
+                                                    <div className="space-y-2">
+                                                        <Label>Tags</Label>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
+                                                            {tags.map(tag => (
+                                                                <div key={tag.id} className="flex items-center space-x-2">
+                                                                    <Checkbox
+                                                                        id={`edit-tag-${tag.id}`}
+                                                                        checked={((editedSubmissionData as NewEntrySuggestionData).tags || []).includes(tag.name)}
+                                                                        onCheckedChange={(checked) => {
+                                                                            const currentTags = (editedSubmissionData as NewEntrySuggestionData).tags || [];
+                                                                            const newTags = checked
+                                                                                ? [...currentTags, tag.name]
+                                                                                : currentTags.filter(t => t !== tag.name);
+                                                                            setEditedSubmissionData({ ...editedSubmissionData, tags: newTags } as NewEntrySuggestionData);
+                                                                        }}
+                                                                    />
+                                                                    <Label htmlFor={`edit-tag-${tag.id}`} className="font-normal">{tag.name}</Label>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="edit-videoLink">Video Link</Label>
+                                                        <Input
+                                                            id="edit-videoLink"
+                                                            type="url"
+                                                            value={(editedSubmissionData as NewEntrySuggestionData).videoLink || ''}
+                                                            onChange={(e) => setEditedSubmissionData({ ...editedSubmissionData, videoLink: e.target.value } as NewEntrySuggestionData)}
+                                                            placeholder="https://youtube.com/watch?v=..."
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto border rounded-md">
+                                            <Table>
+                                                <TableBody>
+                                                    <TableRow>
+                                                        <TableCell className="font-medium">Name</TableCell>
+                                                        <TableCell>{(viewingSubmission.data as NewEntrySuggestionData).name}</TableCell>
+                                                    </TableRow>
+                                                    <TableRow>
+                                                        <TableCell className="font-medium">Description</TableCell>
+                                                        <TableCell className="whitespace-pre-wrap">{(viewingSubmission.data as NewEntrySuggestionData).description}</TableCell>
+                                                    </TableRow>
+                                                    <TableRow>
+                                                        <TableCell className="font-medium">Aliases</TableCell>
+                                                        <TableCell>{formatAliases((viewingSubmission.data as NewEntrySuggestionData).aliases)}</TableCell>
+                                                    </TableRow>
+                                                    <TableRow>
+                                                        <TableCell className="font-medium">Type</TableCell>
+                                                        <TableCell className="capitalize">{(viewingSubmission.data as NewEntrySuggestionData).entryType}</TableCell>
+                                                    </TableRow>
+                                                    {(viewingSubmission.data as NewEntrySuggestionData).entryType === 'exicon' && (
+                                                        <>
+                                                            <TableRow>
+                                                                <TableCell className="font-medium">Tags</TableCell>
+                                                                <TableCell>
+                                                                    {((viewingSubmission.data as NewEntrySuggestionData).tags || []).length > 0
+                                                                        ? ((viewingSubmission.data as NewEntrySuggestionData).tags || []).map(tagName => tagName).join(', ')
+                                                                        : 'None'}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                            <TableRow>
+                                                                <TableCell className="font-medium">Video Link</TableCell>
+                                                                <TableCell>{(viewingSubmission.data as NewEntrySuggestionData).videoLink || 'None'}</TableCell>
+                                                            </TableRow>
+                                                        </>
+                                                    )}
+                                                    <TableRow>
+                                                        <TableCell className="font-medium">References</TableCell>
+                                                        <TableCell>
+                                                            {((viewingSubmission.data as NewEntrySuggestionData).mentionedEntries || []).length > 0
+                                                                ? ((viewingSubmission.data as NewEntrySuggestionData).mentionedEntries || []).join(', ')
+                                                                : 'None'}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <h4 className="text-lg font-semibold">Comments</h4>
                                         <p className="text-sm text-muted-foreground">{(viewingSubmission.data as NewEntrySuggestionData).comments || 'No comments provided.'}</p>
@@ -897,21 +998,39 @@ export default function AdminPanel() {
                         </div>
                     )}
                     <DialogFooter className="mt-4">
-                        <Button
-                            variant="destructive"
-                            onClick={() => handleRejectSubmission(viewingSubmission?.id!)}
-                            disabled={!viewingSubmission || isSubmitting}
-                        >
-                            <XCircle className="h-4 w-4 mr-2" /> Reject
-                        </Button>
-                        <DialogClose asChild>
-                            <Button
-                                onClick={() => handleApproveSubmission(viewingSubmission?.id!)}
-                                disabled={!viewingSubmission || isSubmitting}
-                            >
-                                <CheckCircle className="h-4 w-4 mr-2" /> Approve
-                            </Button>
-                        </DialogClose>
+                        {isEditingSubmission ? (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancelEditingSubmission}
+                                >
+                                    <X className="h-4 w-4 mr-2" /> Cancel
+                                </Button>
+                                <Button
+                                    onClick={handleSaveSubmissionEdits}
+                                >
+                                    <Save className="h-4 w-4 mr-2" /> Save Changes
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="destructive"
+                                    onClick={() => handleRejectSubmission(viewingSubmission?.id!)}
+                                    disabled={!viewingSubmission || isSubmitting}
+                                >
+                                    <XCircle className="h-4 w-4 mr-2" /> Reject
+                                </Button>
+                                <DialogClose asChild>
+                                    <Button
+                                        onClick={() => handleApproveSubmission(viewingSubmission?.id!)}
+                                        disabled={!viewingSubmission || isSubmitting}
+                                    >
+                                        <CheckCircle className="h-4 w-4 mr-2" /> Approve
+                                    </Button>
+                                </DialogClose>
+                            </>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

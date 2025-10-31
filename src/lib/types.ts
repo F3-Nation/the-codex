@@ -95,8 +95,8 @@ export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySugges
   id: number;
   submissionType: 'new' | 'edit';
   data: T;
-  submitterName?: string;
-  submitterEmail?: string;
+  submitterName: string;
+  submitterEmail: string;
   status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
   createdAt?: string;

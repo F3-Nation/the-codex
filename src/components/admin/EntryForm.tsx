@@ -119,7 +119,7 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
 
       await onFormSubmit(entryData);
     } catch (error) {
-      console.error('Form submission error:', error);
+
       setLocalError(error instanceof Error ? error.message : 'An unknown error occurred');
     }
   };
@@ -188,6 +188,9 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
             <Label htmlFor="description">
               Description <span className="text-destructive">*</span>
             </Label>
+            <p className="text-sm text-muted-foreground">
+              Type <span className="font-mono text-destructive font-semibold">@</span> to mention and link to other entries in the description.
+            </p>
             <MentionTextArea
               value={description}
               onChange={setDescription}

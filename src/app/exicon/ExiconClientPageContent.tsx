@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Download, Dumbbell, PencilLine } from 'lucide-react';
@@ -21,10 +22,75 @@ interface ExiconClientPageContentProps {
 }
 
 export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClientPageContentProps) => {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Initialize state from URL params
   const [searchTerm, setSearchTerm] = useState('');
   const [filterLetter, setFilterLetter] = useState('All');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterLogic, setFilterLogic] = useState<FilterLogic>('OR');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Parse URL parameters on mount
+  useEffect(() => {
+    const tagsParam = searchParams.get('tags');
+    const tagLogicParam = searchParams.get('tagLogic');
+    const searchParam = searchParams.get('search');
+    const letterParam = searchParams.get('letter');
+
+    if (tagsParam) {
+      // Parse comma-separated tag names and convert to IDs
+      const tagNames = tagsParam.split(',').map(t => t.trim());
+      const tagIds = tagNames
+        .map(name => allTags.find(tag => tag.name.toLowerCase() === name.toLowerCase())?.id)
+        .filter((id): id is string => id !== undefined);
+      setSelectedTags(tagIds);
+    }
+
+    if (tagLogicParam && (tagLogicParam === 'AND' || tagLogicParam === 'OR')) {
+      setFilterLogic(tagLogicParam);
+    }
+
+    if (searchParam) {
+      setSearchTerm(searchParam);
+    }
+
+    if (letterParam && letterParam.length === 1) {
+      setFilterLetter(letterParam.toUpperCase());
+    }
+
+    setIsInitialized(true);
+  }, [searchParams, allTags]);
+
+  // Update URL when filters change
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const params = new URLSearchParams();
+
+    if (selectedTags.length > 0) {
+      const tagNames = selectedTags
+        .map(id => allTags.find(tag => tag.id === id)?.name)
+        .filter((name): name is string => name !== undefined);
+      params.set('tags', tagNames.join(','));
+    }
+
+    if (selectedTags.length > 0 && filterLogic === 'AND') {
+      params.set('tagLogic', 'AND');
+    }
+
+    if (searchTerm) {
+      params.set('search', searchTerm);
+    }
+
+    if (filterLetter !== 'All') {
+      params.set('letter', filterLetter);
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/exicon';
+    router.replace(newUrl, { scroll: false });
+  }, [selectedTags, filterLogic, searchTerm, filterLetter, isInitialized, allTags, router]);
 
   const handleTagChange = (tagId: string) => {
     setSelectedTags((prevSelectedTags) =>
