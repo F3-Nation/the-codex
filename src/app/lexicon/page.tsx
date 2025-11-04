@@ -1,5 +1,6 @@
 // app/lexicon/page.tsx
-export const dynamic = 'force-dynamic';
+export const revalidate = 60; // Revalidate every 60 seconds (ISR)
+
 import { PageContainer } from '@/components/layout/PageContainer';
 import { LexiconClientPageContent } from './LexiconClientPageContent';
 import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
@@ -58,10 +59,6 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
-  const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);
-  return Array.from(new Set(allMentionedIds));
-};
 
 
 function normalizeAliases(aliases: unknown, entryId: string): { id: string; name: string }[] {
@@ -123,37 +120,15 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
       (entry): entry is LexiconEntry => entry.type === 'lexicon'
     );
 
-    try {
-      const uniqueMentionedIds = getUniqueMentionedIds(lexiconEntries);
+    // fetchAllEntries() already resolves mentioned entries, just normalize aliases
+    enrichedEntries = lexiconEntries.map((entry) => {
+      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
 
-      const mentionPromises = uniqueMentionedIds.map(id => getEntryByIdFromDatabase(id));
-      const mentionedEntryResults = await Promise.all(mentionPromises);
-
-      const resolvedMentionsData: Record<string, AnyEntry> = {};
-      mentionedEntryResults.forEach(entry => {
-        if (entry) {
-          resolvedMentionsData[entry.id] = entry;
-        }
-      });
-
-      enrichedEntries = lexiconEntries.map((entry) => {
-        const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
-
-        return {
-          ...entry,
-          aliases: normalizedAliases,
-          resolvedMentionsData,
-        };
-      });
-
-    } catch (enrichmentError) {
-      console.error("❌ LexiconPage: Failed to enrich entries:", enrichmentError);
-      enrichedEntries = lexiconEntries.map(entry => ({
+      return {
         ...entry,
-        aliases: normalizeAliases(entry.aliases, entry.id),
-      }));
-      errorMessage = 'Some data enrichment failed, but basic entries are available.';
-    }
+        aliases: normalizedAliases,
+      };
+    });
 
   } catch (fetchError) {
     console.error("❌ LexiconPage: Failed to fetch entries:", fetchError);

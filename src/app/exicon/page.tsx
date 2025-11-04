@@ -3,7 +3,7 @@ import { ExiconClientPageContent } from './ExiconClientPageContent';
 import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
 import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const searchParamsResolved = await searchParams;
@@ -57,10 +57,6 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   };
 }
 
-const getUniqueMentionedIds = (entries: AnyEntry[]): string[] => {
-  const allMentionedIds = entries.flatMap(entry => entry.mentionedEntries || []);
-  return Array.from(new Set(allMentionedIds));
-};
 
 function coerceTagsToValidTagArray(tags: unknown): Tag[] {
   if (Array.isArray(tags)) {
@@ -143,41 +139,16 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
     const exiconEntries = allEntries.filter(
       (entry): entry is ExiconEntry => entry.type === 'exicon'
     );
+    enrichedEntries = exiconEntries.map((entry) => {
+      const processedTags = coerceTagsToValidTagArray(entry.tags);
+      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
 
-    try {
-      const uniqueMentionedIds = getUniqueMentionedIds(exiconEntries);
-
-      const mentionPromises = uniqueMentionedIds.map(id => getEntryByIdFromDatabase(id));
-      const mentionedEntryResults = await Promise.all(mentionPromises);
-
-      const resolvedMentionsData: Record<string, AnyEntry> = {};
-      mentionedEntryResults.forEach(entry => {
-        if (entry) {
-          resolvedMentionsData[entry.id] = entry;
-        }
-      });
-
-      enrichedEntries = exiconEntries.map((entry) => {
-        const processedTags = coerceTagsToValidTagArray(entry.tags);
-        const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
-
-        return {
-          ...entry,
-          tags: processedTags,
-          aliases: normalizedAliases,
-          resolvedMentionsData,
-        };
-      });
-
-    } catch (enrichmentError) {
-      console.error("❌ ExiconPage: Failed to enrich entries:", enrichmentError);
-      enrichedEntries = exiconEntries.map(entry => ({
+      return {
         ...entry,
-        tags: coerceTagsToValidTagArray(entry.tags),
-        aliases: normalizeAliases(entry.aliases, entry.id),
-      }));
-      errorMessage = 'Some data enrichment failed, but basic entries are available.';
-    }
+        tags: processedTags,
+        aliases: normalizedAliases,
+      };
+    });
 
   } catch (fetchError) {
     console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);

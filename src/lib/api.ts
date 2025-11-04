@@ -353,29 +353,49 @@ export const fetchAllEntries = async (type?: string): Promise<EntryWithReference
 
     const transformedEntries = res.rows.map(transformDbRowToEntry);
 
-    const entriesWithResolvedMentions = await Promise.all(
-      transformedEntries.map(async (entry) => {
-        if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
-          const mentionedEntriesRes = await client.query(
-            `SELECT id, title, definition, type, aliases, video_link,
-             COALESCE(
-               (
-                 SELECT json_agg(
-                   json_build_object('id', t.id, 'name', t.name)
-                 )
-                 FROM tags t
-                 JOIN entry_tags et ON t.id = et.tag_id
-                 WHERE et.entry_id = entries.id
-               ),
-               '[]'::json
-             ) AS tags
-             FROM entries WHERE id = ANY($1::text[])`,
-            [entry.mentionedEntries]
-          );
+    // Collect all unique mentioned entry IDs across all entries
+    const allMentionedIds = new Set<string>();
+    transformedEntries.forEach((entry) => {
+      if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
+        entry.mentionedEntries.forEach((id) => allMentionedIds.add(id));
+      }
+    });
 
-          const resolvedMentionsData: Record<string, AnyEntry> = {};
-          mentionedEntriesRes.rows.forEach((mentionedRow: any) => {
-            const mentionedEntry = transformDbRowToEntry(mentionedRow);
+    // Fetch all mentioned entries in a single bulk query
+    let mentionedEntriesMap: Map<string, AnyEntry> = new Map();
+    if (allMentionedIds.size > 0) {
+      const mentionedEntriesRes = await client.query(
+        `SELECT id, title, definition, type, aliases, video_link,
+         COALESCE(
+           (
+             SELECT json_agg(
+               json_build_object('id', t.id, 'name', t.name)
+             )
+             FROM tags t
+             JOIN entry_tags et ON t.id = et.tag_id
+             WHERE et.entry_id = entries.id
+           ),
+           '[]'::json
+         ) AS tags
+         FROM entries WHERE id = ANY($1::text[])`,
+        [Array.from(allMentionedIds)]
+      );
+
+      // Build lookup map for mentioned entries
+      mentionedEntriesRes.rows.forEach((mentionedRow: any) => {
+        const mentionedEntry = transformDbRowToEntry(mentionedRow);
+        mentionedEntriesMap.set(mentionedEntry.id, mentionedEntry);
+      });
+    }
+
+    // Assign resolved mentions to each entry
+    const entriesWithResolvedMentions = transformedEntries.map((entry) => {
+      if (entry.mentionedEntries && entry.mentionedEntries.length > 0) {
+        const resolvedMentionsData: Record<string, AnyEntry> = {};
+
+        entry.mentionedEntries.forEach((mentionedId) => {
+          const mentionedEntry = mentionedEntriesMap.get(mentionedId);
+          if (mentionedEntry) {
             resolvedMentionsData[mentionedEntry.id] = mentionedEntry;
             resolvedMentionsData[mentionedEntry.name] = mentionedEntry;
 
@@ -385,17 +405,17 @@ export const fetchAllEntries = async (type?: string): Promise<EntryWithReference
                 resolvedMentionsData[aliasName] = mentionedEntry;
               });
             }
-          });
+          }
+        });
 
-          return {
-            ...entry,
-            resolvedMentionsData
-          };
-        }
+        return {
+          ...entry,
+          resolvedMentionsData
+        };
+      }
 
-        return entry;
-      })
-    );
+      return entry;
+    });
 
     return entriesWithResolvedMentions;
   } catch (err: any) {
