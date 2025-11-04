@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Input } from '@/components/ui/input';
-import { Search as SearchIcon } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Search as SearchIcon } from "lucide-react";
 
 interface SearchBarProps {
   searchTerm: string;
@@ -9,7 +9,11 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export function SearchBar({ searchTerm, onSearchChange, placeholder = "Search entries..." }: SearchBarProps) {
+export function SearchBar({
+  searchTerm,
+  onSearchChange,
+  placeholder = "Search entries...",
+}: SearchBarProps) {
   return (
     <div className="relative w-full">
       <SearchIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />

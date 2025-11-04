@@ -1,8 +1,14 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { PageContainer } from '@/components/layout/PageContainer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, Dumbbell, Flame } from 'lucide-react';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PageContainer } from "@/components/layout/PageContainer";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { BookOpen, Dumbbell, Flame } from "lucide-react";
 
 export default function Home() {
   return (
@@ -13,8 +19,9 @@ export default function Home() {
           Welcome to the F3 Codex
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8">
-          Your comprehensive guide to F3 Nation&apos;s exercises (Exicon) and terminology (Lexicon).
-          Explore, learn, and contribute to the collective wisdom of the PAX.
+          Your comprehensive guide to F3 Nation&apos;s exercises (Exicon) and
+          terminology (Lexicon). Explore, learn, and contribute to the
+          collective wisdom of the PAX.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 mb-12">
           <Button asChild size="lg">
@@ -34,12 +41,14 @@ export default function Home() {
               <CardTitle className="text-2xl">The Exicon</CardTitle>
             </div>
             <CardDescription>
-              A detailed encyclopedia of F3 exercises. Find new movements, understand proper form, and plan your next Q.
+              A detailed encyclopedia of F3 exercises. Find new movements,
+              understand proper form, and plan your next Q.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="mb-4">
-              The Exicon contains a growing list of exercises, complete with descriptions, aliases, tags, and video links where available.
+              The Exicon contains a growing list of exercises, complete with
+              descriptions, aliases, tags, and video links where available.
             </p>
             <Button asChild variant="outline">
               <Link href="/exicon">Go to Exicon</Link>
@@ -54,12 +63,14 @@ export default function Home() {
               <CardTitle className="text-2xl">The Lexicon</CardTitle>
             </div>
             <CardDescription>
-              Decode the unique language of F3. Understand the terms, acronyms, and slang that define our culture.
+              Decode the unique language of F3. Understand the terms, acronyms,
+              and slang that define our culture.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="mb-4">
-              The Lexicon helps FNGs and veterans alike stay current with F3 lingo, ensuring clear communication and stronger fellowship.
+              The Lexicon helps FNGs and veterans alike stay current with F3
+              lingo, ensuring clear communication and stronger fellowship.
             </p>
             <Button asChild variant="outline">
               <Link href="/lexicon">Go to Lexicon</Link>

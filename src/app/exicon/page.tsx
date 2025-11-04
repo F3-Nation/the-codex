@@ -1,11 +1,19 @@
-import { PageContainer } from '@/components/layout/PageContainer';
-import { ExiconClientPageContent } from './ExiconClientPageContent';
-import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
-import type { ExiconEntry, AnyEntry, Tag } from '@/lib/types';
+import { PageContainer } from "@/components/layout/PageContainer";
+import { ExiconClientPageContent } from "./ExiconClientPageContent";
+import {
+  fetchAllEntries,
+  getEntryByIdFromDatabase,
+  fetchTagsFromDatabase,
+} from "@/lib/api";
+import type { ExiconEntry, AnyEntry, Tag } from "@/lib/types";
 
 export const revalidate = 60;
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
@@ -14,11 +22,13 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
 
-      if (entry && entry.type === 'exicon') {
+      if (entry && entry.type === "exicon") {
         const title = `${entry.name} - F3 Exicon`;
-        const description = entry.description || `Learn about the ${entry.name} exercise in the F3 Exicon.`;
+        const description =
+          entry.description ||
+          `Learn about the ${entry.name} exercise in the F3 Exicon.`;
         const url = `https://f3nation.com/exicon?entryId=${entryId}`;
-        const tags = entry.tags?.map(tag => tag.name).join(', ') || '';
+        const tags = entry.tags?.map((tag) => tag.name).join(", ") || "";
 
         return {
           title,
@@ -27,11 +37,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
             title,
             description: tags ? `${description} Tags: ${tags}` : description,
             url,
-            siteName: 'F3 Nation Codex',
-            type: 'article',
+            siteName: "F3 Nation Codex",
+            type: "article",
             images: [
               {
-                url: '/og-exicon.png',
+                url: "/og-exicon.png",
                 width: 1200,
                 height: 630,
                 alt: `${entry.name} - F3 Exicon Exercise`,
@@ -39,35 +49,43 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
             ],
           },
           twitter: {
-            card: 'summary_large_image',
+            card: "summary_large_image",
             title,
             description: tags ? `${description} Tags: ${tags}` : description,
-            images: ['/og-exicon.png'],
+            images: ["/og-exicon.png"],
           },
         };
       }
     } catch (error) {
-      console.error('Failed to generate metadata for entry:', error);
+      console.error("Failed to generate metadata for entry:", error);
     }
   }
 
   return {
-    title: 'Exicon - F3 Codex',
-    description: 'Explore F3 exercises in the Exicon.',
+    title: "Exicon - F3 Codex",
+    description: "Explore F3 exercises in the Exicon.",
   };
 }
-
 
 function coerceTagsToValidTagArray(tags: unknown): Tag[] {
   if (Array.isArray(tags)) {
     return tags
-      .map(tag => {
-        if (typeof tag === 'string') {
-          return { id: tag.toLowerCase().replace(/\s+/g, '-'), name: tag.trim() };
-        }
-        if (typeof tag === 'object' && tag !== null && typeof tag.name === 'string') {
+      .map((tag) => {
+        if (typeof tag === "string") {
           return {
-            id: String(tag.id ?? `tag-${tag.name.toLowerCase().replace(/\s+/g, '-')}`),
+            id: tag.toLowerCase().replace(/\s+/g, "-"),
+            name: tag.trim(),
+          };
+        }
+        if (
+          typeof tag === "object" &&
+          tag !== null &&
+          typeof tag.name === "string"
+        ) {
+          return {
+            id: String(
+              tag.id ?? `tag-${tag.name.toLowerCase().replace(/\s+/g, "-")}`,
+            ),
             name: tag.name.trim(),
           };
         }
@@ -78,26 +96,33 @@ function coerceTagsToValidTagArray(tags: unknown): Tag[] {
   return [];
 }
 
-function normalizeAliases(aliases: unknown, entryId: string): { id: string; name: string }[] {
+function normalizeAliases(
+  aliases: unknown,
+  entryId: string,
+): { id: string; name: string }[] {
   return Array.isArray(aliases)
     ? aliases
-      .map((alias, i) => {
-        if (typeof alias === 'string') {
-          return { id: `alias-${entryId}-${i}`, name: alias };
-        }
-        if (alias && typeof alias.name === 'string') {
-          return {
-            id: alias.id ?? `alias-${entryId}-${i}`,
-            name: alias.name,
-          };
-        }
-        return null;
-      })
-      .filter((a): a is { id: string; name: string } => a !== null)
+        .map((alias, i) => {
+          if (typeof alias === "string") {
+            return { id: `alias-${entryId}-${i}`, name: alias };
+          }
+          if (alias && typeof alias.name === "string") {
+            return {
+              id: alias.id ?? `alias-${entryId}-${i}`,
+              name: alias.name,
+            };
+          }
+          return null;
+        })
+        .filter((a): a is { id: string; name: string } => a !== null)
     : [];
 }
 
-export default async function ExiconPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default async function ExiconPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
@@ -106,13 +131,13 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
     // Check if the entry exists and get its type
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
-      const { redirect } = await import('next/navigation');
+      const { redirect } = await import("next/navigation");
 
       if (entry) {
         // Redirect to the correct section based on entry type
-        if (entry.type === 'exicon') {
+        if (entry.type === "exicon") {
           redirect(`/exicon/${encodeURIComponent(entryId)}`);
-        } else if (entry.type === 'lexicon') {
+        } else if (entry.type === "lexicon") {
           redirect(`/lexicon/${encodeURIComponent(entryId)}`);
         }
       } else {
@@ -121,7 +146,7 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
       }
     } catch (error) {
       // If there's an error fetching, fallback to current section
-      const { redirect } = await import('next/navigation');
+      const { redirect } = await import("next/navigation");
       redirect(`/exicon/${encodeURIComponent(entryId)}`);
     }
   }
@@ -129,7 +154,7 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
   let allEntries: AnyEntry[] = [];
   let enrichedEntries: ExiconEntry[] = [];
   let allAvailableTags: Tag[] = [];
-  let errorMessage = '';
+  let errorMessage = "";
 
   try {
     allEntries = await fetchAllEntries();
@@ -137,7 +162,7 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
     allAvailableTags = await fetchTagsFromDatabase();
 
     const exiconEntries = allEntries.filter(
-      (entry): entry is ExiconEntry => entry.type === 'exicon'
+      (entry): entry is ExiconEntry => entry.type === "exicon",
     );
     enrichedEntries = exiconEntries.map((entry) => {
       const processedTags = coerceTagsToValidTagArray(entry.tags);
@@ -149,7 +174,6 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
         aliases: normalizedAliases,
       };
     });
-
   } catch (fetchError) {
     console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);
     errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;
@@ -159,20 +183,35 @@ export default async function ExiconPage({ searchParams }: { searchParams: Promi
       <PageContainer>
         <div className="text-center py-12">
           <h1 className="text-3xl font-bold mb-4">F3 Exicon</h1>
-          <p className="text-red-500 mb-4">Error loading data: {errorMessage}</p>
+          <p className="text-red-500 mb-4">
+            Error loading data: {errorMessage}
+          </p>
           <div className="text-left max-w-md mx-auto bg-gray-100 p-4 rounded text-sm">
-            <p><strong>Runtime Debug Info:</strong></p>
-            <p>DATABASE_URL available: {process.env.DATABASE_URL ? 'Yes' : 'No'}</p>
+            <p>
+              <strong>Runtime Debug Info:</strong>
+            </p>
+            <p>
+              DATABASE_URL available: {process.env.DATABASE_URL ? "Yes" : "No"}
+            </p>
             <p>NODE_ENV: {process.env.NODE_ENV}</p>
             <p>URL length: {process.env.DATABASE_URL?.length || 0}</p>
-            <p>Starts with postgresql: {process.env.DATABASE_URL?.startsWith('postgresql://') ? 'Yes' : 'No'}</p>
-            <p>DB env vars: {Object.keys(process.env).filter(k => k.includes('DATABASE')).join(', ')}</p>
+            <p>
+              Starts with postgresql:{" "}
+              {process.env.DATABASE_URL?.startsWith("postgresql://")
+                ? "Yes"
+                : "No"}
+            </p>
+            <p>
+              DB env vars:{" "}
+              {Object.keys(process.env)
+                .filter((k) => k.includes("DATABASE"))
+                .join(", ")}
+            </p>
           </div>
         </div>
       </PageContainer>
     );
   }
-
 
   return (
     <PageContainer>

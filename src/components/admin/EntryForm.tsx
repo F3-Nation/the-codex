@@ -1,15 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import type { Tag, ExiconEntry, AnyEntry, ReferencedEntry, LexiconEntry } from '@/lib/types';
-import { MentionTextArea } from '@/components/shared/MentionTextArea';
-import { searchEntriesByName } from '@/app/submit/actions';
+import { useState, useEffect, useCallback, startTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import type {
+  Tag,
+  ExiconEntry,
+  AnyEntry,
+  ReferencedEntry,
+  LexiconEntry,
+} from "@/lib/types";
+import { MentionTextArea } from "@/components/shared/MentionTextArea";
+import { searchEntriesByName } from "@/app/submit/actions";
 
 interface EntryFormProps {
   entryToEdit?: AnyEntry;
@@ -18,124 +24,124 @@ interface EntryFormProps {
   isSubmitting: boolean;
 }
 
-export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: EntryFormProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+export function EntryForm({
+  entryToEdit,
+  onFormSubmit,
+  allTags,
+  isSubmitting,
+}: EntryFormProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [aliases, setAliases] = useState<{ id: string; name: string }[]>([]);
-  const [type, setType] = useState<'exicon' | 'lexicon'>('exicon');
+  const [type, setType] = useState<"exicon" | "lexicon">("exicon");
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [videoLink, setVideoLink] = useState('');
+  const [videoLink, setVideoLink] = useState("");
   const [references, setReferences] = useState<ReferencedEntry[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-
     if (entryToEdit) {
-      setName(entryToEdit.name);
-      setDescription(entryToEdit.description);
-      setType(entryToEdit.type);
-      const isExicon = entryToEdit.type === 'exicon';
+      const isExicon = entryToEdit.type === "exicon";
+      const nextSelectedTagIds = isExicon
+        ? (entryToEdit as ExiconEntry).tags.map((tag) => tag.id)
+        : [];
 
-
-      setSelectedTagIds(
-        isExicon ? (entryToEdit as ExiconEntry).tags.map((tag) => tag.id) : []
-      );
-
-      if (isExicon) {
-        const exiconEntry = entryToEdit as ExiconEntry;
-        setVideoLink(exiconEntry.videoLink || '');
-      } else {
-        setVideoLink('');
-      }
+      const nextVideoLink = isExicon
+        ? (entryToEdit as ExiconEntry).videoLink || ""
+        : "";
 
       const formattedAliases = Array.isArray(entryToEdit.aliases)
         ? entryToEdit.aliases.map((alias, idx) => ({
-          id:
-            typeof alias === 'string'
-              ? `alias-${Date.now()}-${idx}`
-              : alias.id || `alias-${Date.now()}-${idx}`,
-          name: typeof alias === 'string' ? alias : alias.name,
-        }))
+            id:
+              typeof alias === "string"
+                ? `alias-${Date.now()}-${idx}`
+                : alias.id || `alias-${Date.now()}-${idx}`,
+            name: typeof alias === "string" ? alias : alias.name,
+          }))
         : [];
 
-      setAliases(formattedAliases);
-
       const entryReferences = entryToEdit.references || [];
-      setReferences(entryReferences);
+
+      startTransition(() => {
+        setName(entryToEdit.name);
+        setDescription(entryToEdit.description);
+        setType(entryToEdit.type);
+        setSelectedTagIds(nextSelectedTagIds);
+        setVideoLink(nextVideoLink);
+        setAliases(formattedAliases);
+        setReferences(entryReferences);
+      });
     } else {
-      setName('');
-      setDescription('');
-      setType('exicon');
-      setSelectedTagIds([]);
-      setVideoLink('');
-      setAliases([]);
-      setReferences([]);
+      startTransition(() => {
+        setName("");
+        setDescription("");
+        setType("exicon");
+        setSelectedTagIds([]);
+        setVideoLink("");
+        setAliases([]);
+        setReferences([]);
+      });
     }
   }, [entryToEdit]);
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
 
     if (!name.trim()) {
-      setLocalError('Name is required');
+      setLocalError("Name is required");
       return;
     }
 
     if (!description.trim()) {
-      setLocalError('Description is required');
+      setLocalError("Description is required");
       return;
     }
 
     try {
-
       const commonData = {
         id:
           entryToEdit?.id ||
-          `${type}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, '-')}`,
+          `${type}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, "-")}`,
         name: name.trim(),
         description: description.trim(),
-        aliases: aliases.filter((alias) => alias.name.trim() !== ''),
+        aliases: aliases.filter((alias) => alias.name.trim() !== ""),
         references: references,
-        mentionedEntries: references.map(ref => ref.id),
+        mentionedEntries: references.map((ref) => ref.id),
       };
 
       const entryData: AnyEntry =
-        type === 'exicon'
-          ? {
-            ...commonData,
-            type: 'exicon',
-            tags: selectedTagIds
-              .map((id) => allTags.find((tag) => tag.id === id))
-              .filter((t): t is Tag => !!t),
-            videoLink: videoLink.trim() || undefined,
-          } as ExiconEntry
-          : {
-            ...commonData,
-            type: 'lexicon',
-          } as LexiconEntry;
-
+        type === "exicon"
+          ? ({
+              ...commonData,
+              type: "exicon",
+              tags: selectedTagIds
+                .map((id) => allTags.find((tag) => tag.id === id))
+                .filter((t): t is Tag => !!t),
+              videoLink: videoLink.trim() || undefined,
+            } as ExiconEntry)
+          : ({
+              ...commonData,
+              type: "lexicon",
+            } as LexiconEntry);
 
       await onFormSubmit(entryData);
     } catch (error) {
-
-      setLocalError(error instanceof Error ? error.message : 'An unknown error occurred');
+      setLocalError(
+        error instanceof Error ? error.message : "An unknown error occurred",
+      );
     }
   };
 
   const handleAddAlias = () => {
-    setAliases((prev) => [
-      ...prev,
-      { id: `temp-${Date.now()}`, name: '' },
-    ]);
+    setAliases((prev) => [...prev, { id: `temp-${Date.now()}`, name: "" }]);
   };
 
   const handleAliasNameChange = (id: string, newName: string) => {
     setAliases((prev) =>
       prev.map((alias) =>
-        alias.id === id ? { ...alias, name: newName } : alias
-      )
+        alias.id === id ? { ...alias, name: newName } : alias,
+      ),
     );
   };
 
@@ -147,19 +153,22 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
         ? prev.filter((id) => id !== tagId)
-        : [...prev, tagId]
+        : [...prev, tagId],
     );
   };
 
-  const handleMentionsChange = useCallback((mentions: { id: string; name: string }[]) => {
-    const validMentions = mentions.filter(m => m.id && m.id !== '');
-    const newReferences = validMentions.map(m => ({
-      id: m.id,
-      name: m.name,
-    })) as ReferencedEntry[];
+  const handleMentionsChange = useCallback(
+    (mentions: { id: string; name: string }[]) => {
+      const validMentions = mentions.filter((m) => m.id && m.id !== "");
+      const newReferences = validMentions.map((m) => ({
+        id: m.id,
+        name: m.name,
+      })) as ReferencedEntry[];
 
-    setReferences(newReferences);
-  }, []);
+      setReferences(newReferences);
+    },
+    [],
+  );
 
   return (
     <Card className="w-full max-w-2xl mx-auto border-0 shadow-none">
@@ -189,7 +198,11 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
               Description <span className="text-destructive">*</span>
             </Label>
             <p className="text-sm text-muted-foreground">
-              Type <span className="font-mono text-destructive font-semibold">@</span> to mention and link to other entries in the description.
+              Type{" "}
+              <span className="font-mono text-destructive font-semibold">
+                @
+              </span>{" "}
+              to mention and link to other entries in the description.
             </p>
             <MentionTextArea
               value={description}
@@ -199,14 +212,13 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
               rows={5}
               searchEntries={searchEntriesByName}
             />
-
           </div>
 
           {references.length > 0 && (
             <div className="space-y-2">
               <Label>Current References</Label>
               <div className="text-sm text-gray-600">
-                {references.map(ref => `${ref.name} (${ref.id})`).join(', ')}
+                {references.map((ref) => `${ref.name} (${ref.id})`).join(", ")}
               </div>
             </div>
           )}
@@ -253,18 +265,18 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
             </Label>
             <RadioGroup
               value={type}
-              onValueChange={(val) => setType(val as 'exicon' | 'lexicon')}
+              onValueChange={(val) => setType(val as "exicon" | "lexicon")}
               className="flex space-x-4"
               disabled={isSubmitting}
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem
                   value="exicon"
-                  id={`type-exicon-form-${entryToEdit?.id || 'new'}`}
+                  id={`type-exicon-form-${entryToEdit?.id || "new"}`}
                   disabled={isSubmitting}
                 />
                 <Label
-                  htmlFor={`type-exicon-form-${entryToEdit?.id || 'new'}`}
+                  htmlFor={`type-exicon-form-${entryToEdit?.id || "new"}`}
                   className="font-normal"
                 >
                   Exicon
@@ -273,11 +285,11 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
               <div className="flex items-center space-x-2">
                 <RadioGroupItem
                   value="lexicon"
-                  id={`type-lexicon-form-${entryToEdit?.id || 'new'}`}
+                  id={`type-lexicon-form-${entryToEdit?.id || "new"}`}
                   disabled={isSubmitting}
                 />
                 <Label
-                  htmlFor={`type-lexicon-form-${entryToEdit?.id || 'new'}`}
+                  htmlFor={`type-lexicon-form-${entryToEdit?.id || "new"}`}
                   className="font-normal"
                 >
                   Lexicon
@@ -286,7 +298,7 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
             </RadioGroup>
           </div>
 
-          {type === 'exicon' && (
+          {type === "exicon" && (
             <>
               <div className="space-y-2">
                 <Label>Tags</Label>
@@ -294,18 +306,15 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
                   {allTags
                     .sort((a, b) => a.name.localeCompare(b.name))
                     .map((tag) => (
-                      <div
-                        key={tag.id}
-                        className="flex items-center space-x-2"
-                      >
+                      <div key={tag.id} className="flex items-center space-x-2">
                         <Checkbox
-                          id={`tag-form-${tag.id}-${entryToEdit?.id || 'new'}`}
+                          id={`tag-form-${tag.id}-${entryToEdit?.id || "new"}`}
                           checked={selectedTagIds.includes(tag.id)}
                           onCheckedChange={() => handleTagChange(tag.id)}
                           disabled={isSubmitting}
                         />
                         <Label
-                          htmlFor={`tag-form-${tag.id}-${entryToEdit?.id || 'new'}`}
+                          htmlFor={`tag-form-${tag.id}-${entryToEdit?.id || "new"}`}
                           className="font-normal"
                         >
                           {tag.name}
@@ -329,18 +338,16 @@ export function EntryForm({ entryToEdit, onFormSubmit, allTags, isSubmitting }: 
           )}
         </CardContent>
         <CardFooter>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                {entryToEdit ? 'Saving Changes...' : 'Creating Entry...'}
+                {entryToEdit ? "Saving Changes..." : "Creating Entry..."}
               </>
+            ) : entryToEdit ? (
+              "Save Changes"
             ) : (
-              entryToEdit ? 'Save Changes' : 'Create Entry'
+              "Create Entry"
             )}
           </Button>
         </CardFooter>

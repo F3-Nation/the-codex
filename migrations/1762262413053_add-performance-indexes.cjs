@@ -9,9 +9,7 @@ exports.shorthands = undefined;
  * @returns {Promise<void> | void}
  */
 exports.up = (pgm) => {
-  console.log(
-    "[MIGRATION_LOG] Starting migration: add_performance_indexes UP"
-  );
+  console.log("[MIGRATION_LOG] Starting migration: add_performance_indexes UP");
 
   // Add index on target_entry_id for entry_references table (in codex schema)
   // This optimizes queries that join on target_entry_id (e.g., finding entries that reference a given entry)
@@ -49,9 +47,7 @@ exports.up = (pgm) => {
     END $$;
   `);
 
-  console.log(
-    "[MIGRATION_LOG] Finished migration: add_performance_indexes UP"
-  );
+  console.log("[MIGRATION_LOG] Finished migration: add_performance_indexes UP");
 };
 
 /**
@@ -61,7 +57,7 @@ exports.up = (pgm) => {
  */
 exports.down = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: add_performance_indexes DOWN"
+    "[MIGRATION_LOG] Starting migration: add_performance_indexes DOWN",
   );
 
   // Drop indexes from both schemas
@@ -76,6 +72,6 @@ exports.down = (pgm) => {
   `);
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: add_performance_indexes DOWN"
+    "[MIGRATION_LOG] Finished migration: add_performance_indexes DOWN",
   );
 };

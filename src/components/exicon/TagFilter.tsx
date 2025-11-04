@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import type { Tag, FilterLogic } from '@/lib/types';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Filter } from 'lucide-react';
+import type { Tag, FilterLogic } from "@/lib/types";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Filter } from "lucide-react";
 
 interface TagFilterProps {
   allTags: Tag[];
@@ -32,7 +32,9 @@ export function TagFilter({
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <Label className="text-sm font-medium mb-2 block">Filter Logic:</Label>
+          <Label className="text-sm font-medium mb-2 block">
+            Filter Logic:
+          </Label>
           <RadioGroup
             value={filterLogic}
             onValueChange={(value) => onFilterLogicChange(value as FilterLogic)}
@@ -40,11 +42,15 @@ export function TagFilter({
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="AND" id="and-logic" />
-              <Label htmlFor="and-logic" className="font-normal">AND</Label>
+              <Label htmlFor="and-logic" className="font-normal">
+                AND
+              </Label>
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="OR" id="or-logic" />
-              <Label htmlFor="or-logic" className="font-normal">OR</Label>
+              <Label htmlFor="or-logic" className="font-normal">
+                OR
+              </Label>
             </div>
           </RadioGroup>
         </div>

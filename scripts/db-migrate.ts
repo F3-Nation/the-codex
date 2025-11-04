@@ -1,12 +1,12 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import process from 'node:process';
-import dotenv from 'dotenv';
-import runner from 'node-pg-migrate';
-import type { Logger } from 'node-pg-migrate/dist/types';
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import process from "node:process";
+import dotenv from "dotenv";
+import runner from "node-pg-migrate";
+import type { Logger } from "node-pg-migrate/dist/types";
 
-type MigrationCommand = 'up' | 'down' | 'redo';
+type MigrationCommand = "up" | "down" | "redo";
 
 interface CliOptions {
   count?: number;
@@ -17,7 +17,7 @@ interface CliOptions {
 }
 
 function loadEnvFiles(): void {
-  const envFiles = ['.env', '.env.local'];
+  const envFiles = [".env", ".env.local"];
 
   for (const fileName of envFiles) {
     const absolutePath = path.resolve(process.cwd(), fileName);
@@ -27,16 +27,21 @@ function loadEnvFiles(): void {
   }
 }
 
-function parseArgs(argv: string[]): { command: MigrationCommand; options: CliOptions } {
+function parseArgs(argv: string[]): {
+  command: MigrationCommand;
+  options: CliOptions;
+} {
   const args = [...argv];
-  let command: MigrationCommand = 'up';
+  let command: MigrationCommand = "up";
 
-  if (args[0] && !args[0].startsWith('--')) {
+  if (args[0] && !args[0].startsWith("--")) {
     const candidate = args.shift()!;
-    if (candidate === 'up' || candidate === 'down' || candidate === 'redo') {
+    if (candidate === "up" || candidate === "down" || candidate === "redo") {
       command = candidate;
     } else {
-      throw new Error(`Unknown migration command "${candidate}". Use "up", "down", or "redo".`);
+      throw new Error(
+        `Unknown migration command "${candidate}". Use "up", "down", or "redo".`,
+      );
     }
   }
 
@@ -45,27 +50,27 @@ function parseArgs(argv: string[]): { command: MigrationCommand; options: CliOpt
   while (args.length > 0) {
     const token = args.shift()!;
 
-    if (token === '--count') {
+    if (token === "--count") {
       const value = args.shift();
       if (!value) {
         throw new Error('The "--count" option requires a numeric value.');
       }
       options.count = parseCount(value);
-    } else if (token.startsWith('--count=')) {
-      options.count = parseCount(token.split('=')[1] ?? '');
-    } else if (token === '--file') {
+    } else if (token.startsWith("--count=")) {
+      options.count = parseCount(token.split("=")[1] ?? "");
+    } else if (token === "--file") {
       const value = args.shift();
       if (!value) {
         throw new Error('The "--file" option requires a migration filename.');
       }
       options.file = value;
-    } else if (token.startsWith('--file=')) {
-      options.file = token.split('=')[1];
-    } else if (token === '--dry-run') {
+    } else if (token.startsWith("--file=")) {
+      options.file = token.split("=")[1];
+    } else if (token === "--dry-run") {
       options.dryRun = true;
-    } else if (token === '--fake') {
+    } else if (token === "--fake") {
       options.fake = true;
-    } else if (token === '--verbose') {
+    } else if (token === "--verbose") {
       options.verbose = true;
     } else {
       throw new Error(`Unknown option "${token}".`);
@@ -78,7 +83,9 @@ function parseArgs(argv: string[]): { command: MigrationCommand; options: CliOpt
 function parseCount(raw: string): number {
   const parsed = Number.parseInt(raw, 10);
   if (Number.isNaN(parsed) || parsed < 1) {
-    throw new Error(`Invalid count "${raw}". Count must be a positive integer.`);
+    throw new Error(
+      `Invalid count "${raw}". Count must be a positive integer.`,
+    );
   }
   return parsed;
 }
@@ -98,11 +105,11 @@ interface PreparedMigrationsDir {
 }
 
 const MIGRATION_PRIORITY: Record<string, number> = {
-  '.ts': 0,
-  '.cjs': 1,
-  '.mjs': 2,
-  '.js': 3,
-  '.sql': 4,
+  ".ts": 0,
+  ".cjs": 1,
+  ".mjs": 2,
+  ".js": 3,
+  ".sql": 4,
 };
 
 function isSupportedMigrationFile(fileName: string): boolean {
@@ -114,7 +121,10 @@ function selectMigrationFiles(
   migrationsDir: string,
 ): { fileName: string; absolutePath: string; priority: number }[] {
   const entries = fs.readdirSync(migrationsDir, { withFileTypes: true });
-  const selections = new Map<string, { fileName: string; absolutePath: string; priority: number }>();
+  const selections = new Map<
+    string,
+    { fileName: string; absolutePath: string; priority: number }
+  >();
 
   for (const entry of entries) {
     if (!entry.isFile()) continue;
@@ -134,25 +144,37 @@ function selectMigrationFiles(
     }
   }
 
-  return Array.from(selections.values()).sort((a, b) => a.fileName.localeCompare(b.fileName));
+  return Array.from(selections.values()).sort((a, b) =>
+    a.fileName.localeCompare(b.fileName),
+  );
 }
 
-function prepareMigrationsDirectory(migrationsDir: string, verbose?: boolean): PreparedMigrationsDir {
+function prepareMigrationsDirectory(
+  migrationsDir: string,
+  verbose?: boolean,
+): PreparedMigrationsDir {
   const selectedFiles = selectMigrationFiles(migrationsDir);
 
-  const duplicatesFiltered = selectedFiles.length !== fs.readdirSync(migrationsDir).filter((entry) => {
-    const ext = path.extname(entry);
-    return isSupportedMigrationFile(entry) && fs.statSync(path.join(migrationsDir, entry)).isFile();
-  }).length;
+  const duplicatesFiltered =
+    selectedFiles.length !==
+    fs.readdirSync(migrationsDir).filter((entry) => {
+      const ext = path.extname(entry);
+      return (
+        isSupportedMigrationFile(entry) &&
+        fs.statSync(path.join(migrationsDir, entry)).isFile()
+      );
+    }).length;
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-migrations-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "codex-migrations-"));
   for (const file of selectedFiles) {
     const destination = path.join(tempDir, file.fileName);
     fs.copyFileSync(file.absolutePath, destination);
   }
 
   if (verbose && duplicatesFiltered) {
-    console.info('[db:migrate] Filtered duplicate migration files by basename.');
+    console.info(
+      "[db:migrate] Filtered duplicate migration files by basename.",
+    );
   }
 
   return {
@@ -164,22 +186,25 @@ function prepareMigrationsDirectory(migrationsDir: string, verbose?: boolean): P
 }
 
 async function runMigrations(
-  direction: 'up' | 'down',
+  direction: "up" | "down",
   options: CliOptions,
   databaseUrl: string,
   migrationsDir: string,
 ): Promise<void> {
   const logger = createLogger(options.verbose);
-  const preparedDir = prepareMigrationsDirectory(migrationsDir, options.verbose);
+  const preparedDir = prepareMigrationsDirectory(
+    migrationsDir,
+    options.verbose,
+  );
   let executed;
 
   try {
     executed = await runner({
       databaseUrl,
       dir: preparedDir.dir,
-      migrationsTable: 'pgmigrations',
+      migrationsTable: "pgmigrations",
       direction,
-      count: options.count ?? (direction === 'down' ? 1 : undefined),
+      count: options.count ?? (direction === "down" ? 1 : undefined),
       file: options.file,
       dryRun: options.dryRun,
       fake: options.fake,
@@ -191,7 +216,9 @@ async function runMigrations(
   }
 
   if (options.dryRun) {
-    console.info(`[db:migrate ${direction}] Dry run complete. ${executed.length} migration(s) would run.`);
+    console.info(
+      `[db:migrate ${direction}] Dry run complete. ${executed.length} migration(s) would run.`,
+    );
     return;
   }
 
@@ -203,7 +230,7 @@ async function runMigrations(
   console.info(
     `[db:migrate ${direction}] Executed ${executed.length} migration(s): ${executed
       .map((migration) => migration.name)
-      .join(', ')}`,
+      .join(", ")}`,
   );
 }
 
@@ -214,17 +241,24 @@ async function main(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL is not set. Please ensure your environment is configured before running migrations.');
+    throw new Error(
+      "DATABASE_URL is not set. Please ensure your environment is configured before running migrations.",
+    );
   }
 
-  const migrationsDir = path.resolve(process.cwd(), 'migrations');
+  const migrationsDir = path.resolve(process.cwd(), "migrations");
   if (!fs.existsSync(migrationsDir)) {
     throw new Error(`Migrations directory not found at ${migrationsDir}.`);
   }
 
-  if (command === 'redo') {
-    await runMigrations('down', { ...options, count: options.count ?? 1 }, databaseUrl, migrationsDir);
-    await runMigrations('up', { ...options }, databaseUrl, migrationsDir);
+  if (command === "redo") {
+    await runMigrations(
+      "down",
+      { ...options, count: options.count ?? 1 },
+      databaseUrl,
+      migrationsDir,
+    );
+    await runMigrations("up", { ...options }, databaseUrl, migrationsDir);
     return;
   }
 
@@ -232,7 +266,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('[db:migrate] Migration command failed.');
+  console.error("[db:migrate] Migration command failed.");
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });

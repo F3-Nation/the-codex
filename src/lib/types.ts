@@ -12,12 +12,11 @@ export interface Alias {
   name: string;
 }
 
-
 export interface ReferencedEntry {
   id: string;
   name: string;
   description: string;
-  type: 'exicon' | 'lexicon';
+  type: "exicon" | "lexicon";
 }
 
 export interface BaseEntry {
@@ -31,15 +30,14 @@ export interface BaseEntry {
   resolvedMentionsData?: Record<string, AnyEntry>;
 }
 export interface ExiconEntry extends BaseEntry {
-  type: 'exicon';
+  type: "exicon";
   tags: Tag[];
   videoLink?: string;
 }
 
 export interface LexiconEntry extends BaseEntry {
-  type: 'lexicon';
+  type: "lexicon";
 }
-
 
 export type AnyEntry = ExiconEntry | LexiconEntry;
 
@@ -49,9 +47,7 @@ export type EntryWithReferences = AnyEntry & {
   resolvedMentionsData?: Record<string, AnyEntry>;
 };
 
-
-export type FilterLogic = 'AND' | 'OR';
-
+export type FilterLogic = "AND" | "OR";
 
 // --- User Submission Types ---
 
@@ -60,7 +56,7 @@ export interface NewEntrySuggestionData {
   name: string;
   description: string;
   aliases: string[];
-  entryType: 'exicon' | 'lexicon';
+  entryType: "exicon" | "lexicon";
   tags: string[];
   videoLink?: string;
   mentionedEntries: string[];
@@ -71,11 +67,10 @@ export interface NewEntrySuggestionData {
   updatedAt?: string;
 }
 
-
 export interface EditEntrySuggestionData {
   entryId: string;
   entryName: string;
-  entryType: 'exicon' | 'lexicon';
+  entryType: "exicon" | "lexicon";
   changes: {
     name?: string;
     description?: string;
@@ -83,29 +78,31 @@ export interface EditEntrySuggestionData {
     tags?: string[];
     videoLink?: string;
     mentionedEntries?: string[];
-    entryType?: 'exicon' | 'lexicon';
+    entryType?: "exicon" | "lexicon";
     comments?: string;
   };
   comments?: string;
 }
 
-
 // This is the core structure stored in the `user_submissions` table.
-export interface UserSubmissionBase<T = NewEntrySuggestionData | EditEntrySuggestionData> {
+export interface UserSubmissionBase<
+  T = NewEntrySuggestionData | EditEntrySuggestionData,
+> {
   id: number;
-  submissionType: 'new' | 'edit';
+  submissionType: "new" | "edit";
   data: T;
   submitterName: string;
   submitterEmail: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   timestamp: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
+export type UserSubmission = UserSubmissionBase<
+  NewEntrySuggestionData | EditEntrySuggestionData
+>;
 
-export type UserSubmission = UserSubmissionBase<NewEntrySuggestionData | EditEntrySuggestionData>;
-
-
-export type NewUserSubmission<T = NewEntrySuggestionData | EditEntrySuggestionData> =
-  Omit<UserSubmissionBase<T>, 'id' | 'status' | 'timestamp'>;
+export type NewUserSubmission<
+  T = NewEntrySuggestionData | EditEntrySuggestionData,
+> = Omit<UserSubmissionBase<T>, "id" | "status" | "timestamp">;

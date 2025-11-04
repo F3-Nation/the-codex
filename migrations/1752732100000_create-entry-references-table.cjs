@@ -10,7 +10,7 @@ exports.shorthands = undefined;
  */
 exports.up = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create_entry_references_table UP"
+    "[MIGRATION_LOG] Starting migration: create_entry_references_table UP",
   );
 
   pgm.createTable(
@@ -45,12 +45,16 @@ exports.up = (pgm) => {
     },
     {
       ifNotExists: true,
-    }
+    },
   );
 
-  pgm.addConstraint("entry_references", "entry_references_unique_source_target", {
-    unique: ["source_entry_id", "target_entry_id"],
-  });
+  pgm.addConstraint(
+    "entry_references",
+    "entry_references_unique_source_target",
+    {
+      unique: ["source_entry_id", "target_entry_id"],
+    },
+  );
 
   pgm.createIndex("entry_references", ["source_entry_id"], {
     ifNotExists: true,
@@ -61,7 +65,7 @@ exports.up = (pgm) => {
   });
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: create_entry_references_table UP"
+    "[MIGRATION_LOG] Finished migration: create_entry_references_table UP",
   );
 };
 
@@ -72,17 +76,21 @@ exports.up = (pgm) => {
  */
 exports.down = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create_entry_references_table DOWN"
+    "[MIGRATION_LOG] Starting migration: create_entry_references_table DOWN",
   );
 
   pgm.dropIndex("entry_references", ["target_entry_id"], { ifExists: true });
   pgm.dropIndex("entry_references", ["source_entry_id"], { ifExists: true });
-  pgm.dropConstraint("entry_references", "entry_references_unique_source_target", {
-    ifExists: true,
-  });
+  pgm.dropConstraint(
+    "entry_references",
+    "entry_references_unique_source_target",
+    {
+      ifExists: true,
+    },
+  );
   pgm.dropTable("entry_references", { ifExists: true });
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: create_entry_references_table DOWN"
+    "[MIGRATION_LOG] Finished migration: create_entry_references_table DOWN",
   );
 };

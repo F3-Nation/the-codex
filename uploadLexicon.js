@@ -58,12 +58,22 @@ async function insertEntry(title, definition) {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING
        RETURNING id`,
-      [title, definition, TYPE, JSON.stringify(DEFAULT_ALIASES), DEFAULT_VIDEO_URL]
+      [
+        title,
+        definition,
+        TYPE,
+        JSON.stringify(DEFAULT_ALIASES),
+        DEFAULT_VIDEO_URL,
+      ],
     );
     if (res.rows.length) {
-      console.log(`✅ Inserted entry for "${title}" with ID: ${res.rows[0].id}`);
+      console.log(
+        `✅ Inserted entry for "${title}" with ID: ${res.rows[0].id}`,
+      );
     } else {
-      console.log(`⚠️ Entry for "${title}" already exists, skipping insertion.`);
+      console.log(
+        `⚠️ Entry for "${title}" already exists, skipping insertion.`,
+      );
     }
     return res.rows.length ? res.rows[0].id : null;
   } catch (e) {
@@ -77,18 +87,21 @@ async function insertSubmission(payload) {
     await client.query(
       `INSERT INTO user_submissions (submission_type, data, submitter_name, submitter_email)
        VALUES ($1, $2, $3, $4)`,
-      ["xicon_upload", payload, SUBMITTER_NAME, SUBMITTER_EMAIL]
+      ["xicon_upload", payload, SUBMITTER_NAME, SUBMITTER_EMAIL],
     );
     console.log(`✅ Inserted submission for "${payload.title}".`);
   } catch (error) {
-    console.error(`❌ Error inserting submission for "${payload.title}":`, error.message);
+    console.error(
+      `❌ Error inserting submission for "${payload.title}":`,
+      error.message,
+    );
     throw error; // Re-throw to handle errors in calling function
   }
 }
 
 function cleanQuotes(text) {
-  if (typeof text !== 'string') {
-    return '';
+  if (typeof text !== "string") {
+    return "";
   }
   return text
     .replace(/â€™/g, `'`)
@@ -125,10 +138,7 @@ async function processCSV(filePath) {
       const tags = []; // Lexicon has no tags
 
       if (!title || !definition) {
-        console.warn(
-          `⚠️ Skipping row with missing title or definition:`,
-          row
-        );
+        console.warn(`⚠️ Skipping row with missing title or definition:`, row);
         continue;
       }
 
@@ -149,7 +159,6 @@ async function processCSV(filePath) {
     }
 
     console.log("🎉 Lexicon upload complete.");
-
   } catch (error) {
     console.error("❌ An error occurred during the CSV processing:", error);
   } finally {

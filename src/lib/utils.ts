@@ -1,6 +1,6 @@
 // src/lib/utils.ts - Modify getYouTubeEmbedUrl
 
-import type { AnyEntry } from './types';
+import type { AnyEntry } from "./types";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -17,15 +17,15 @@ export function cn(...inputs: ClassValue[]) {
  */
 export async function formatDescriptionWithMentionsHTML(
   description: string,
-  allEntries: AnyEntry[]
+  allEntries: AnyEntry[],
 ): Promise<string> {
   if (!description) {
-    return '';
+    return "";
   }
 
   const mentionRegex = /@([a-zA-Z0-9s_.-]+)(?=[s,.!?;:]|$)/g;
   let lastIndex = 0;
-  let html = '';
+  let html = "";
   let match;
 
   const entryMap = new Map<string, AnyEntry>();
@@ -33,14 +33,13 @@ export async function formatDescriptionWithMentionsHTML(
     entryMap.set(entry.name.toLowerCase(), entry);
     if (entry.aliases) {
       for (const alias of entry.aliases) {
-        const aliasName = typeof alias === 'string' ? alias : alias.name;
+        const aliasName = typeof alias === "string" ? alias : alias.name;
         if (aliasName) {
           entryMap.set(aliasName.toLowerCase(), entry);
         }
       }
     }
   }
-
 
   while ((match = mentionRegex.exec(description)) !== null) {
     const before = description.substring(lastIndex, match.index);
@@ -54,7 +53,7 @@ export async function formatDescriptionWithMentionsHTML(
                  class="entry-mention text-blue-700 underline hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900 cursor-pointer"
                  data-entry-id="${matchedEntry.id}"
                  data-entry-name="${matchedEntry.name}"
-                 data-entry-description="${matchedEntry.description.replace(/"/g, '&quot;')}" // Escape quotes for HTML attribute
+                 data-entry-description="${matchedEntry.description.replace(/"/g, "&quot;")}" // Escape quotes for HTML attribute
                  data-entry-type="${matchedEntry.type}"
                >
                  ${matchedEntry.name}
@@ -76,8 +75,8 @@ export async function formatDescriptionWithMentionsHTML(
 export const getYouTubeEmbedUrl = (url: string): string | null => {
   if (!url) return null;
 
-
-  const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+  const youtubeRegex =
+    /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
 
   const match = url.match(youtubeRegex);
 
@@ -88,32 +87,38 @@ export const getYouTubeEmbedUrl = (url: string): string | null => {
   return null;
 };
 
-export function exportToCSV(entries: AnyEntry[], filename: string = 'f3-codex-export.csv') {
+export function exportToCSV(
+  entries: AnyEntry[],
+  filename: string = "f3-codex-export.csv",
+) {
   if (!entries || entries.length === 0) {
     return;
   }
 
-  const replacer = (_key: string, value: any) => (value === null || value === undefined ? '' : value);
+  const replacer = (_key: string, value: any) =>
+    value === null || value === undefined ? "" : value;
 
-  const header = ['ID', 'Name', 'Description', 'Aliases'];
+  const header = ["ID", "Name", "Description", "Aliases"];
   const csvRows = [
-    header.join(','),
-    ...entries.map(entry => [
-      JSON.stringify(entry.id, replacer),
-      JSON.stringify(entry.name, replacer),
-      JSON.stringify(entry.description, replacer),
-      JSON.stringify(entry.aliases?.join('; ') || '', replacer),
-    ].join(','))
+    header.join(","),
+    ...entries.map((entry) =>
+      [
+        JSON.stringify(entry.id, replacer),
+        JSON.stringify(entry.name, replacer),
+        JSON.stringify(entry.description, replacer),
+        JSON.stringify(entry.aliases?.join("; ") || "", replacer),
+      ].join(","),
+    ),
   ];
 
-  const csvString = csvRows.join('\n');
-  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
+  const csvString = csvRows.join("\n");
+  const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

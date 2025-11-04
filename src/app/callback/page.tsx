@@ -1,7 +1,7 @@
-'use client';
-import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { getOAuthConfig, exchangeCodeForToken, getUserInfo } from '@/lib/auth';
+"use client";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getOAuthConfig, exchangeCodeForToken, getUserInfo } from "@/lib/auth";
 
 interface OAuthConfig {
   CLIENT_ID: string;
@@ -23,8 +23,8 @@ function CallbackContent() {
         const config = await getOAuthConfig();
         setOauthConfig(config);
       } catch (err) {
-        console.error('Failed to load OAuth configuration:', err);
-        setError('Failed to load OAuth configuration');
+        console.error("Failed to load OAuth configuration:", err);
+        setError("Failed to load OAuth configuration");
       }
     };
 
@@ -35,14 +35,14 @@ function CallbackContent() {
     if (!oauthConfig) return;
 
     const handleCallback = async () => {
-      const code = searchParams.get('code');
-      const state = searchParams.get('state');
-      const errorParam = searchParams.get('error');
+      const code = searchParams.get("code");
+      const state = searchParams.get("state");
+      const errorParam = searchParams.get("error");
 
       // Debug logging
-      console.log('Callback debug:', {
-        code: code ? 'present' : 'missing',
-        state: state ? 'present' : 'missing',
+      console.log("Callback debug:", {
+        code: code ? "present" : "missing",
+        state: state ? "present" : "missing",
         errorParam,
         url: window.location.href,
       });
@@ -55,21 +55,21 @@ function CallbackContent() {
       if (!code || !state) {
         // Check if this might be a CORS-related issue
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('code') && urlParams.has('state')) {
+        if (urlParams.has("code") && urlParams.has("state")) {
           // Parameters exist in URL but not accessible - likely CORS issue
-          setError('Authentication processing error. Please try again.');
+          setError("Authentication processing error. Please try again.");
         } else {
-          setError('Missing authorization code or state parameter');
+          setError("Missing authorization code or state parameter");
         }
         return;
       }
 
       try {
         // Verify state parameter structure (handle cross-browser scenarios)
-        const storedState = localStorage.getItem('oauth_state');
-        console.log('State verification:', {
+        const storedState = localStorage.getItem("oauth_state");
+        console.log("State verification:", {
           receivedState: state,
-          storedState: storedState ? 'present' : 'missing (cross-browser)',
+          storedState: storedState ? "present" : "missing (cross-browser)",
         });
 
         // Decode and validate state parameter structure
@@ -77,15 +77,20 @@ function CallbackContent() {
           try {
             return JSON.parse(decodeURIComponent(atob(state)));
           } catch (err) {
-            console.error('Failed to decode state:', err);
-            throw new Error('Invalid state parameter format');
+            console.error("Failed to decode state:", err);
+            throw new Error("Invalid state parameter format");
           }
         };
 
         const receivedStateObj = decodeState(state);
 
         // Validate required fields in received state
-        const requiredFields = ['csrfToken', 'clientId', 'returnTo', 'timestamp'];
+        const requiredFields = [
+          "csrfToken",
+          "clientId",
+          "returnTo",
+          "timestamp",
+        ];
         for (const field of requiredFields) {
           if (!receivedStateObj[field]) {
             throw new Error(`State missing required field: ${field}`);
@@ -96,7 +101,7 @@ function CallbackContent() {
         const timestampDiff = Date.now() - receivedStateObj.timestamp;
         if (timestampDiff > 600000) {
           // 10 minutes in ms
-          throw new Error('Expired state parameter');
+          throw new Error("Expired state parameter");
         }
 
         // If we have stored state, validate it matches (same browser scenario)
@@ -110,10 +115,13 @@ function CallbackContent() {
               receivedStateObj.clientId !== storedStateObj.clientId ||
               receivedStateObj.returnTo !== storedStateObj.returnTo
             ) {
-              throw new Error('Invalid state parameter');
+              throw new Error("Invalid state parameter");
             }
           } catch (err) {
-            console.warn('Stored state validation failed, continuing with server validation:', err);
+            console.warn(
+              "Stored state validation failed, continuing with server validation:",
+              err,
+            );
           }
         }
 
@@ -127,20 +135,27 @@ function CallbackContent() {
         const userData = await getUserInfo(accessToken);
 
         // Store user data and tokens in localStorage (in production, use secure storage)
-        localStorage.setItem('user_info', JSON.stringify(userData));
-        localStorage.setItem('access_token', accessToken);
+        localStorage.setItem("user_info", JSON.stringify(userData));
+        localStorage.setItem("access_token", accessToken);
         if (tokenData.refresh_token) {
-          localStorage.setItem('refresh_token', tokenData.refresh_token as string);
+          localStorage.setItem(
+            "refresh_token",
+            tokenData.refresh_token as string,
+          );
         }
 
         // Clean up OAuth state
-        localStorage.removeItem('oauth_state');
+        localStorage.removeItem("oauth_state");
 
         // Redirect to admin panel
-        router.push('/admin');
+        router.push("/admin");
       } catch (err) {
-        console.error('OAuth callback error:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred during authentication');
+        console.error("OAuth callback error:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred during authentication",
+        );
       }
     };
 
@@ -153,10 +168,12 @@ function CallbackContent() {
         <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
           <div className="text-center">
             <div className="text-red-600 text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              Authentication Error
+            </h1>
             <p className="text-red-600 mb-6">{error}</p>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push("/")}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg"
             >
               Return to Home
@@ -172,7 +189,9 @@ function CallbackContent() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Processing authentication...</p>
-        <p className="text-sm text-gray-500 mt-2">Please wait while we complete your login</p>
+        <p className="text-sm text-gray-500 mt-2">
+          Please wait while we complete your login
+        </p>
       </div>
     </div>
   );

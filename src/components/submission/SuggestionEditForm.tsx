@@ -1,17 +1,29 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useTransition } from 'react';
-import type { AnyEntry, ExiconEntry, Tag, EditEntrySuggestionData, ReferencedEntry, NewUserSubmission } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { useState, useEffect, useTransition } from "react";
+import type {
+  AnyEntry,
+  ExiconEntry,
+  Tag,
+  EditEntrySuggestionData,
+  ReferencedEntry,
+  NewUserSubmission,
+} from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from '@/hooks/use-toast';
-import { submitEditEntrySuggestion, fetchAllTags, searchEntriesByName, getEntryById } from '@/app/submit/actions';
-import { MentionTextArea } from '@/components/shared/MentionTextArea';
+import { useToast } from "@/hooks/use-toast";
+import {
+  submitEditEntrySuggestion,
+  fetchAllTags,
+  searchEntriesByName,
+  getEntryById,
+} from "@/app/submit/actions";
+import { MentionTextArea } from "@/components/shared/MentionTextArea";
 
 interface SuggestionEditFormProps {
   entryToSuggestEditFor: AnyEntry;
@@ -19,26 +31,42 @@ interface SuggestionEditFormProps {
   onClose: () => void;
 }
 
-export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClose }: SuggestionEditFormProps) {
+export function SuggestionEditForm({
+  entryToSuggestEditFor,
+  onFormSubmit,
+  onClose,
+}: SuggestionEditFormProps) {
   const { toast } = useToast();
-  const isExicon = entryToSuggestEditFor.type === 'exicon';
+  const isExicon = entryToSuggestEditFor.type === "exicon";
   const exiconEntry = isExicon ? (entryToSuggestEditFor as ExiconEntry) : null;
 
   const [isPending, startTransition] = useTransition();
 
-  const [suggestedTitle, setSuggestedTitle] = useState(entryToSuggestEditFor.name);
-  const [suggestedDescription, setSuggestedDescription] = useState(entryToSuggestEditFor.description);
-  const [suggestedAliases, setSuggestedAliases] = useState('');
-  const [suggestedTagIds, setSuggestedTagIds] = useState<string[]>(exiconEntry?.tags?.map((t: Tag) => t.id) || []);
-  const [suggestedVideoLink, setSuggestedVideoLink] = useState(exiconEntry?.videoLink || '');
-  const [submitterName, setSubmitterName] = useState('');
-  const [submitterEmail, setSubmitterEmail] = useState('');
-  const [comments, setComments] = useState('');
+  const [suggestedTitle, setSuggestedTitle] = useState(
+    entryToSuggestEditFor.name,
+  );
+  const [suggestedDescription, setSuggestedDescription] = useState(
+    entryToSuggestEditFor.description,
+  );
+  const [suggestedAliases, setSuggestedAliases] = useState("");
+  const [suggestedTagIds, setSuggestedTagIds] = useState<string[]>(
+    exiconEntry?.tags?.map((t: Tag) => t.id) || [],
+  );
+  const [suggestedVideoLink, setSuggestedVideoLink] = useState(
+    exiconEntry?.videoLink || "",
+  );
+  const [submitterName, setSubmitterName] = useState("");
+  const [submitterEmail, setSubmitterEmail] = useState("");
+  const [comments, setComments] = useState("");
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
-  const [rawMentions, setRawMentions] = useState<{ id: string; name: string }[]>([]);
-  const [suggestedReferences, setSuggestedReferences] = useState<ReferencedEntry[]>([]);
+  const [rawMentions, setRawMentions] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [suggestedReferences, setSuggestedReferences] = useState<
+    ReferencedEntry[]
+  >([]);
 
   useEffect(() => {
     const loadTags = async () => {
@@ -47,8 +75,11 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
         const tags = await fetchAllTags();
         setAvailableTags(tags.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (error) {
-
-        toast({ title: "Error loading tags", description: "Could not load tags for the form.", variant: "destructive" });
+        toast({
+          title: "Error loading tags",
+          description: "Could not load tags for the form.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoadingTags(false);
       }
@@ -59,16 +90,22 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
   useEffect(() => {
     if (Array.isArray(entryToSuggestEditFor.aliases)) {
       const formattedAliases = entryToSuggestEditFor.aliases
-        .map(alias => {
-          if (typeof alias === 'string') return alias;
-          if (alias && typeof alias === 'object' && 'name' in alias && typeof alias.name === 'string') return alias.name;
-          return '';
+        .map((alias) => {
+          if (typeof alias === "string") return alias;
+          if (
+            alias &&
+            typeof alias === "object" &&
+            "name" in alias &&
+            typeof alias.name === "string"
+          )
+            return alias.name;
+          return "";
         })
         .filter(Boolean)
-        .join(', ');
+        .join(", ");
       setSuggestedAliases(formattedAliases);
     } else {
-      setSuggestedAliases('');
+      setSuggestedAliases("");
     }
   }, [entryToSuggestEditFor.aliases]);
 
@@ -86,11 +123,8 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
               type: fullEntry.type,
             });
           } else {
-
           }
-        } catch (error) {
-
-        }
+        } catch (error) {}
       }
 
       startTransition(() => {
@@ -103,24 +137,36 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
     } else {
       setSuggestedReferences([]);
     }
-
   }, [rawMentions, startTransition]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!submitterName.trim()) {
-      toast({ title: "F3 Name Required", description: "Please provide your F3 name.", variant: "destructive" });
+      toast({
+        title: "F3 Name Required",
+        description: "Please provide your F3 name.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!submitterEmail.trim()) {
-      toast({ title: "Email Required", description: "Please provide your email address.", variant: "destructive" });
+      toast({
+        title: "Email Required",
+        description: "Please provide your email address.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!comments.trim()) {
-      toast({ title: "Comments Required", description: "Please provide comments explaining your suggested changes.", variant: "destructive" });
+      toast({
+        title: "Comments Required",
+        description:
+          "Please provide comments explaining your suggested changes.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -129,35 +175,64 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
       entryName: entryToSuggestEditFor.name,
       entryType: entryToSuggestEditFor.type,
       changes: {
-        name: suggestedTitle !== entryToSuggestEditFor.name ? suggestedTitle : undefined,
-        description: suggestedDescription !== entryToSuggestEditFor.description ? suggestedDescription : undefined,
-        aliases: suggestedAliases.split(',').map(a => a.trim()).filter(Boolean),
-        tags: isExicon ? suggestedTagIds.map(id => availableTags.find(t => t.id === id)?.name).filter(Boolean) as string[] : undefined,
-        videoLink: isExicon && suggestedVideoLink !== exiconEntry?.videoLink ? suggestedVideoLink : undefined,
-        mentionedEntries: suggestedReferences.map(ref => ref.id),
+        name:
+          suggestedTitle !== entryToSuggestEditFor.name
+            ? suggestedTitle
+            : undefined,
+        description:
+          suggestedDescription !== entryToSuggestEditFor.description
+            ? suggestedDescription
+            : undefined,
+        aliases: suggestedAliases
+          .split(",")
+          .map((a) => a.trim())
+          .filter(Boolean),
+        tags: isExicon
+          ? (suggestedTagIds
+              .map((id) => availableTags.find((t) => t.id === id)?.name)
+              .filter(Boolean) as string[])
+          : undefined,
+        videoLink:
+          isExicon && suggestedVideoLink !== exiconEntry?.videoLink
+            ? suggestedVideoLink
+            : undefined,
+        mentionedEntries: suggestedReferences.map((ref) => ref.id),
       },
       comments,
     };
 
-    Object.keys(editDataPayload.changes).forEach(keyStr => {
-      const key = keyStr as keyof EditEntrySuggestionData['changes'];
+    Object.keys(editDataPayload.changes).forEach((keyStr) => {
+      const key = keyStr as keyof EditEntrySuggestionData["changes"];
       if (editDataPayload.changes[key] === undefined) {
         delete editDataPayload.changes[key];
       }
-      if (Array.isArray(editDataPayload.changes[key]) && (editDataPayload.changes[key] as (string | ReferencedEntry)[]).length === 0) {
-        const originalArray = entryToSuggestEditFor.type === 'exicon' && key === 'tags' ? (entryToSuggestEditFor as ExiconEntry).tags.map(t => t.name) : (entryToSuggestEditFor[key as keyof AnyEntry] as (string | ReferencedEntry)[]);
+      if (
+        Array.isArray(editDataPayload.changes[key]) &&
+        (editDataPayload.changes[key] as (string | ReferencedEntry)[])
+          .length === 0
+      ) {
+        const originalArray =
+          entryToSuggestEditFor.type === "exicon" && key === "tags"
+            ? (entryToSuggestEditFor as ExiconEntry).tags.map((t) => t.name)
+            : (entryToSuggestEditFor[key as keyof AnyEntry] as (
+                | string
+                | ReferencedEntry
+              )[]);
         if (originalArray === undefined || originalArray.length === 0) {
           delete editDataPayload.changes[key];
         }
       }
     });
 
-    if (suggestedDescription === entryToSuggestEditFor.description && suggestedReferences.length === 0) {
+    if (
+      suggestedDescription === entryToSuggestEditFor.description &&
+      suggestedReferences.length === 0
+    ) {
       delete editDataPayload.changes.mentionedEntries;
     }
 
     const submissionPayload: NewUserSubmission<EditEntrySuggestionData> = {
-      submissionType: 'edit',
+      submissionType: "edit",
       data: editDataPayload,
       submitterName: submitterName,
       submitterEmail: submitterEmail,
@@ -172,13 +247,20 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
       onFormSubmit(editDataPayload);
       onClose();
     } catch (error) {
-
-      toast({ title: "Submission Failed", description: "Could not submit your edit suggestion. Please try again.", variant: "destructive" });
+      toast({
+        title: "Submission Failed",
+        description: "Could not submit your edit suggestion. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleTagChange = (tagId: string) => {
-    setSuggestedTagIds(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]);
+    setSuggestedTagIds((prev) =>
+      prev.includes(tagId)
+        ? prev.filter((id) => id !== tagId)
+        : [...prev, tagId],
+    );
   };
 
   return (
@@ -195,7 +277,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="submitterName-suggest">Your F3 Name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="submitterName-suggest">
+                Your F3 Name <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="submitterName-suggest"
                 value={submitterName}
@@ -204,7 +288,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="submitterEmail-suggest">Your Email <span className="text-destructive">*</span></Label>
+              <Label htmlFor="submitterEmail-suggest">
+                Your Email <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="submitterEmail-suggest"
                 type="email"
@@ -216,10 +302,7 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
           </div>
         </div>
 
-        <Tabs
-          defaultValue="description"
-          className="w-full"
-        >
+        <Tabs defaultValue="description" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 mb-4">
             <TabsTrigger value="description">Description</TabsTrigger>
             <TabsTrigger value="aliases">Aliases</TabsTrigger>
@@ -230,9 +313,15 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
           <CardContent className="space-y-6 px-1 max-h-[65vh] overflow-y-auto">
             <TabsContent value="description">
               <div className="space-y-2">
-                <Label htmlFor="suggestedDescription">Suggested Description</Label>
+                <Label htmlFor="suggestedDescription">
+                  Suggested Description
+                </Label>
                 <p className="text-sm text-muted-foreground">
-                  Type <span className="font-mono text-destructive font-semibold">@</span> to mention and link to other entries in the description.
+                  Type{" "}
+                  <span className="font-mono text-destructive font-semibold">
+                    @
+                  </span>{" "}
+                  to mention and link to other entries in the description.
                 </p>
                 <MentionTextArea
                   value={suggestedDescription}
@@ -247,7 +336,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
 
             <TabsContent value="aliases">
               <div className="space-y-2">
-                <Label htmlFor="suggestedAliases">Suggested Aliases (comma-separated)</Label>
+                <Label htmlFor="suggestedAliases">
+                  Suggested Aliases (comma-separated)
+                </Label>
                 <Input
                   id="suggestedAliases"
                   value={suggestedAliases}
@@ -260,13 +351,19 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
               <>
                 <TabsContent value="video">
                   <div className="space-y-2">
-                    <Label htmlFor="suggestedVideoLink">Suggested Video Link</Label>
+                    <Label htmlFor="suggestedVideoLink">
+                      Suggested Video Link
+                    </Label>
                     <Input
                       id="suggestedVideoLink"
                       type="url"
                       value={suggestedVideoLink}
                       onChange={(e) => setSuggestedVideoLink(e.target.value)}
-                      placeholder={exiconEntry?.videoLink ? "Update existing link" : "https://youtube.com/watch?v=..."}
+                      placeholder={
+                        exiconEntry?.videoLink
+                          ? "Update existing link"
+                          : "https://youtube.com/watch?v=..."
+                      }
                     />
                   </div>
                 </TabsContent>
@@ -274,20 +371,32 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
                 <TabsContent value="tags">
                   <div className="space-y-2">
                     <Label>Suggested Tags</Label>
-                    {isLoadingTags ? <p>Loading tags...</p> : availableTags.length > 0 ? (
+                    {isLoadingTags ? (
+                      <p>Loading tags...</p>
+                    ) : availableTags.length > 0 ? (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
-                        {availableTags.map(tag => (
-                          <div key={tag.id} className="flex items-center space-x-2">
+                        {availableTags.map((tag) => (
+                          <div
+                            key={tag.id}
+                            className="flex items-center space-x-2"
+                          >
                             <Checkbox
                               id={`suggest-tag-${tag.id}`}
                               checked={suggestedTagIds.includes(tag.id)}
                               onCheckedChange={() => handleTagChange(tag.id)}
                             />
-                            <Label htmlFor={`suggest-tag-${tag.id}`} className="font-normal">{tag.name}</Label>
+                            <Label
+                              htmlFor={`suggest-tag-${tag.id}`}
+                              className="font-normal"
+                            >
+                              {tag.name}
+                            </Label>
                           </div>
                         ))}
                       </div>
-                    ) : <p>No tags available.</p>}
+                    ) : (
+                      <p>No tags available.</p>
+                    )}
                   </div>
                 </TabsContent>
               </>
@@ -297,7 +406,10 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
 
         {/* Comments section - always visible */}
         <div className="space-y-2 px-6">
-          <Label htmlFor="comments">Reason for Changes / Comments <span className="text-destructive">*</span></Label>
+          <Label htmlFor="comments">
+            Reason for Changes / Comments{" "}
+            <span className="text-destructive">*</span>
+          </Label>
           <Textarea
             id="comments"
             value={comments}
@@ -308,7 +420,9 @@ export function SuggestionEditForm({ entryToSuggestEditFor, onFormSubmit, onClos
         </div>
 
         <CardFooter className="px-1 pt-6 pb-0 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
           <Button type="submit">Submit Suggestion</Button>
         </CardFooter>
       </form>
