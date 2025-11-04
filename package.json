@@ -76,6 +76,8 @@
     "@types/react-dom": "^18",
     "csv-parser": "^3.2.0",
     "dotenv-cli": "^8.0.0",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.0.1",
     "genkit-cli": "^1.8.0",
     "node-pg-migrate": "^7.9.1",
     "postcss": "^8",
