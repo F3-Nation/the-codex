@@ -13,7 +13,12 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh"
+    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh",
+    "db:generate:migration": "tsx scripts/db-generate-migration.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts up",
+    "db:migrate:up": "tsx scripts/db-migrate.ts up",
+    "db:migrate:down": "tsx scripts/db-migrate.ts down",
+    "db:migrate:redo": "tsx scripts/db-migrate.ts redo"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
