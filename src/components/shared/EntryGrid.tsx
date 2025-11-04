@@ -1,9 +1,14 @@
-import { useState } from 'react';
-import type { AnyEntry } from '@/lib/types';
-import { EntryCard } from '@/components/shared/EntryCard';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { useState } from "react";
+import type { AnyEntry } from "@/lib/types";
+import { EntryCard } from "@/components/shared/EntryCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 
 interface EntryGridProps {
   entries: AnyEntry[];
@@ -12,7 +17,7 @@ interface EntryGridProps {
 
 export function EntryGrid({ entries, label }: EntryGridProps) {
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageInput, setPageInput] = useState('1');
+  const [pageInput, setPageInput] = useState("1");
   const entriesPerPage = 51;
 
   if (!entries || entries.length === 0) {
@@ -33,7 +38,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
 
   const goToFirstPage = () => {
     setCurrentPage(1);
-    setPageInput('1');
+    setPageInput("1");
   };
 
   const goToPreviousPage = () => {
@@ -68,7 +73,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
   };
 
   const handlePageInputKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       handlePageInputSubmit(e);
     }
   };
@@ -77,7 +82,8 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1}-{Math.min(endIndex, entries.length)} of {entries.length} entries
+          Showing {startIndex + 1}-{Math.min(endIndex, entries.length)} of{" "}
+          {entries.length} entries
         </div>
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
@@ -139,7 +145,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {paginatedEntries.map(entry => (
+        {paginatedEntries.map((entry) => (
           <EntryCard key={entry.id} entry={entry} />
         ))}
       </div>

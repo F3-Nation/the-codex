@@ -1,10 +1,11 @@
-import { PageContainer } from '@/components/layout/PageContainer';
-import { SubmissionForm } from '@/components/submission/SubmissionFormWrapper';
-import { FilePlus2 } from 'lucide-react';
+import { PageContainer } from "@/components/layout/PageContainer";
+import { SubmissionForm } from "@/components/submission/SubmissionFormWrapper";
+import { FilePlus2 } from "lucide-react";
 
 export const metadata = {
-  title: 'Submit Entry - F3 Codex',
-  description: 'Submit new entries or suggest edits for the F3 Exicon and Lexicon.',
+  title: "Submit Entry - F3 Codex",
+  description:
+    "Submit new entries or suggest edits for the F3 Exicon and Lexicon.",
 };
 
 // This page is now a server component by default and can fetch data.

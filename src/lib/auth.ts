@@ -1,6 +1,6 @@
-'use server';
+"use server";
 
-import { AuthClient, type AuthClientConfig } from 'f3-nation-auth-sdk';
+import { AuthClient, type AuthClientConfig } from "f3-nation-auth-sdk";
 
 interface OauthClient {
   CLIENT_ID: string;
@@ -16,10 +16,10 @@ interface TokenExchangeParams {
 // This client only knows about itself - no other client secrets needed
 const authConfig: AuthClientConfig = {
   client: {
-    CLIENT_ID: process.env.OAUTH_CLIENT_ID || '',
-    CLIENT_SECRET: process.env.OAUTH_CLIENT_SECRET || '',
-    REDIRECT_URI: process.env.OAUTH_REDIRECT_URI || '',
-    AUTH_SERVER_URL: process.env.AUTH_PROVIDER_URL || '',
+    CLIENT_ID: process.env.OAUTH_CLIENT_ID || "",
+    CLIENT_SECRET: process.env.OAUTH_CLIENT_SECRET || "",
+    REDIRECT_URI: process.env.OAUTH_REDIRECT_URI || "",
+    AUTH_SERVER_URL: process.env.AUTH_PROVIDER_URL || "",
   },
 };
 
@@ -37,22 +37,25 @@ export async function exchangeCodeForToken(params: TokenExchangeParams) {
 export async function getUserInfo(accessToken: string) {
   const authServerUrl = authConfig.client.AUTH_SERVER_URL;
   if (!authServerUrl) {
-    throw new Error('Auth server URL is not configured');
+    throw new Error("Auth server URL is not configured");
   }
 
   const response = await fetch(`${authServerUrl}/api/oauth/userinfo`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
-    cache: 'no-store',
+    cache: "no-store",
   });
 
   if (!response.ok) {
-    let errorDetail = 'Failed to fetch user info';
+    let errorDetail = "Failed to fetch user info";
     try {
       const body = await response.json();
       errorDetail =
-        body.error_description || body.error || body.message || `${response.status} ${response.statusText}`;
+        body.error_description ||
+        body.error ||
+        body.message ||
+        `${response.status} ${response.statusText}`;
     } catch {
       // Ignore JSON parsing error and use the default message
     }

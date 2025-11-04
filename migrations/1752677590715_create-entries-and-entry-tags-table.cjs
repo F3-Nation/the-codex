@@ -10,7 +10,7 @@ exports.shorthands = undefined;
  */
 exports.up = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create_entries_and_entry_tags_table UP"
+    "[MIGRATION_LOG] Starting migration: create_entries_and_entry_tags_table UP",
   );
 
   // Create 'entries' table (this part remains as is, as it's working)
@@ -36,7 +36,7 @@ exports.up = (pgm) => {
     },
     {
       ifNotExists: true,
-    }
+    },
   );
 
   pgm.createIndex("entries", "title", { ifNotExists: true });
@@ -58,7 +58,7 @@ exports.up = (pgm) => {
   // This migration file now ONLY defines the database schema.
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: create_entries_and_entry_tags_table UP"
+    "[MIGRATION_LOG] Finished migration: create_entries_and_entry_tags_table UP",
   );
 };
 
@@ -69,7 +69,7 @@ exports.up = (pgm) => {
  */
 exports.down = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create_entries_and_entry_tags_table DOWN"
+    "[MIGRATION_LOG] Starting migration: create_entries_and_entry_tags_table DOWN",
   );
   // When using pgm.sql for UP, you should use pgm.sql for DOWN too for consistency,
   // or ensure pgm.dropTable can correctly identify the table created by pgm.sql.
@@ -80,6 +80,6 @@ exports.down = (pgm) => {
   pgm.dropIndex("entries", "type", { ifExists: true });
   pgm.dropIndex("entries", "title", { ifExists: true });
   console.log(
-    "[MIGRATION_LOG] Finished migration: create_entries_and_entry_tags_table DOWN"
+    "[MIGRATION_LOG] Finished migration: create_entries_and_entry_tags_table DOWN",
   );
 };

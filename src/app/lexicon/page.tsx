@@ -1,14 +1,20 @@
 // app/lexicon/page.tsx
 export const revalidate = 60; // Revalidate every 60 seconds (ISR)
 
-import { PageContainer } from '@/components/layout/PageContainer';
-import { LexiconClientPageContent } from './LexiconClientPageContent';
-import { fetchAllEntries, getEntryByIdFromDatabase, fetchTagsFromDatabase } from '@/lib/api';
-import type { AnyEntry, LexiconEntry, Tag } from '@/lib/types';
+import { PageContainer } from "@/components/layout/PageContainer";
+import { LexiconClientPageContent } from "./LexiconClientPageContent";
+import {
+  fetchAllEntries,
+  getEntryByIdFromDatabase,
+  fetchTagsFromDatabase,
+} from "@/lib/api";
+import type { AnyEntry, LexiconEntry, Tag } from "@/lib/types";
 
-
-
-export async function generateMetadata({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
@@ -17,9 +23,10 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
 
-      if (entry && entry.type === 'lexicon') {
+      if (entry && entry.type === "lexicon") {
         const title = `${entry.name} - F3 Lexicon`;
-        const description = entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
+        const description =
+          entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
         const url = `https://f3nation.com/lexicon?entryId=${entryId}`;
 
         return {
@@ -29,11 +36,11 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
             title,
             description,
             url,
-            siteName: 'F3 Nation Codex',
-            type: 'article',
+            siteName: "F3 Nation Codex",
+            type: "article",
             images: [
               {
-                url: '/og-lexicon.png',
+                url: "/og-lexicon.png",
                 width: 1200,
                 height: 630,
                 alt: `${entry.name} - F3 Lexicon Term`,
@@ -41,46 +48,51 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
             ],
           },
           twitter: {
-            card: 'summary_large_image',
+            card: "summary_large_image",
             title,
             description,
-            images: ['/og-lexicon.png'],
+            images: ["/og-lexicon.png"],
           },
         };
       }
     } catch (error) {
-      console.error('Failed to generate metadata for entry:', error);
+      console.error("Failed to generate metadata for entry:", error);
     }
   }
 
   return {
-    title: 'F3 Lexicon - F3 Codex',
-    description: 'Explore F3 terminology in the Lexicon.',
+    title: "F3 Lexicon - F3 Codex",
+    description: "Explore F3 terminology in the Lexicon.",
   };
 }
 
-
-
-function normalizeAliases(aliases: unknown, entryId: string): { id: string; name: string }[] {
+function normalizeAliases(
+  aliases: unknown,
+  entryId: string,
+): { id: string; name: string }[] {
   return Array.isArray(aliases)
     ? aliases
-      .map((alias, i) => {
-        if (typeof alias === 'string') {
-          return { id: `alias-${entryId}-${i}`, name: alias };
-        }
-        if (alias && typeof alias.name === 'string') {
-          return {
-            id: alias.id ?? `alias-${entryId}-${i}`,
-            name: alias.name,
-          };
-        }
-        return null;
-      })
-      .filter((a): a is { id: string; name: string } => a !== null)
+        .map((alias, i) => {
+          if (typeof alias === "string") {
+            return { id: `alias-${entryId}-${i}`, name: alias };
+          }
+          if (alias && typeof alias.name === "string") {
+            return {
+              id: alias.id ?? `alias-${entryId}-${i}`,
+              name: alias.name,
+            };
+          }
+          return null;
+        })
+        .filter((a): a is { id: string; name: string } => a !== null)
     : [];
 }
 
-export default async function LexiconPage({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
+export default async function LexiconPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const searchParamsResolved = await searchParams;
 
   if (searchParamsResolved.entryId) {
@@ -89,13 +101,13 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
     // Check if the entry exists and get its type
     try {
       const entry = await getEntryByIdFromDatabase(entryId);
-      const { redirect } = await import('next/navigation');
+      const { redirect } = await import("next/navigation");
 
       if (entry) {
         // Redirect to the correct section based on entry type
-        if (entry.type === 'exicon') {
+        if (entry.type === "exicon") {
           redirect(`/exicon/${encodeURIComponent(entryId)}`);
-        } else if (entry.type === 'lexicon') {
+        } else if (entry.type === "lexicon") {
           redirect(`/lexicon/${encodeURIComponent(entryId)}`);
         }
       } else {
@@ -104,20 +116,20 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
       }
     } catch (error) {
       // If there's an error fetching, fallback to current section
-      const { redirect } = await import('next/navigation');
+      const { redirect } = await import("next/navigation");
       redirect(`/lexicon/${encodeURIComponent(entryId)}`);
     }
   }
   let allEntries: AnyEntry[] = [];
   let enrichedEntries: LexiconEntry[] = [];
   let allAvailableTags: Tag[] = [];
-  let errorMessage = '';
+  let errorMessage = "";
 
   try {
     allEntries = await fetchAllEntries();
     allAvailableTags = await fetchTagsFromDatabase();
     const lexiconEntries = allEntries.filter(
-      (entry): entry is LexiconEntry => entry.type === 'lexicon'
+      (entry): entry is LexiconEntry => entry.type === "lexicon",
     );
 
     // fetchAllEntries() already resolves mentioned entries, just normalize aliases
@@ -129,7 +141,6 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
         aliases: normalizedAliases,
       };
     });
-
   } catch (fetchError) {
     console.error("❌ LexiconPage: Failed to fetch entries:", fetchError);
     errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;
@@ -138,7 +149,9 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
       <PageContainer>
         <div className="text-center py-12">
           <h1 className="text-3xl font-bold mb-4">F3 Lexicon</h1>
-          <p className="text-red-500 mb-4">Error loading data: {errorMessage}</p>
+          <p className="text-red-500 mb-4">
+            Error loading data: {errorMessage}
+          </p>
         </div>
       </PageContainer>
     );
@@ -152,10 +165,7 @@ export default async function LexiconPage({ searchParams }: { searchParams: Prom
           <p>{errorMessage}</p>
         </div>
       )}
-      <LexiconClientPageContent
-        initialEntries={enrichedEntries}
-
-      />
+      <LexiconClientPageContent initialEntries={enrichedEntries} />
     </PageContainer>
   );
 }

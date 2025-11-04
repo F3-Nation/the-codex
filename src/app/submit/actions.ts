@@ -1,10 +1,20 @@
-'use server';
+"use server";
 
-import { createSubmissionInDatabase, fetchTagsFromDatabase as apiFetchTagsFromDatabase, getEntryByIdFromDatabase } from '@/lib/api';
-import type { NewUserSubmission, NewEntrySuggestionData, EditEntrySuggestionData, Tag, EntryWithReferences } from '@/lib/types';
-import { getClient } from '@/lib/db';
-import { transformDbRowToEntry } from '@/lib/api';
-import sgMail from '@sendgrid/mail';
+import {
+  createSubmissionInDatabase,
+  fetchTagsFromDatabase as apiFetchTagsFromDatabase,
+  getEntryByIdFromDatabase,
+} from "@/lib/api";
+import type {
+  NewUserSubmission,
+  NewEntrySuggestionData,
+  EditEntrySuggestionData,
+  Tag,
+  EntryWithReferences,
+} from "@/lib/types";
+import { getClient } from "@/lib/db";
+import { transformDbRowToEntry } from "@/lib/api";
+import sgMail from "@sendgrid/mail";
 
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -14,23 +24,25 @@ if (process.env.SENDGRID_API_KEY) {
  * Sends email notification for new submissions
  */
 async function sendSubmissionNotification(
-  type: 'new' | 'edit',
+  type: "new" | "edit",
   submissionData: NewEntrySuggestionData | EditEntrySuggestionData,
   submitterEmail: string,
-  submitterName: string
+  submitterName: string,
 ) {
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('SENDGRID_API_KEY not configured - skipping email notification');
+    console.warn(
+      "SENDGRID_API_KEY not configured - skipping email notification",
+    );
     return;
   }
 
   if (!process.env.FROM_EMAIL) {
-    console.warn('FROM_EMAIL not configured - skipping email notification');
+    console.warn("FROM_EMAIL not configured - skipping email notification");
     return;
   }
 
   try {
-    const isEdit = type === 'edit';
+    const isEdit = type === "edit";
     const entryName = isEdit
       ? (submissionData as EditEntrySuggestionData).entryName
       : (submissionData as NewEntrySuggestionData).name;
@@ -43,11 +55,11 @@ async function sendSubmissionNotification(
       html: `
         <h2>Thank you for your submission!</h2>
         <p>Hi ${submitterName},</p>
-        <p>We've received your ${isEdit ? 'edit suggestion' : 'new entry suggestion'} for "<strong>${entryName}</strong>".</p>
+        <p>We've received your ${isEdit ? "edit suggestion" : "new entry suggestion"} for "<strong>${entryName}</strong>".</p>
         <p>Our team will review it and get back to you soon.</p>
         <br>
         <p>Thanks for contributing to the F3 community!</p>
-      `
+      `,
     };
 
     console.log(`Sending confirmation email to: ${submitterEmail}`);
@@ -58,32 +70,36 @@ async function sendSubmissionNotification(
     const adminMsg = {
       to: process.env.FROM_EMAIL!, // Admin receives at support@f3nation.com
       from: process.env.FROM_EMAIL!,
-      subject: `New ${isEdit ? 'Edit' : 'Entry'} Submission: ${entryName}`,
+      subject: `New ${isEdit ? "Edit" : "Entry"} Submission: ${entryName}`,
       html: `
         <h2>New Submission Received</h2>
-        <p><strong>Type:</strong> ${isEdit ? 'Edit Suggestion' : 'New Entry'}</p>
+        <p><strong>Type:</strong> ${isEdit ? "Edit Suggestion" : "New Entry"}</p>
         <p><strong>Entry:</strong> ${entryName}</p>
         <p><strong>Submitter:</strong> ${submitterName} (${submitterEmail})</p>
-        <p><strong>Description:</strong> ${isEdit ? 'Edit to existing entry' : (submissionData as NewEntrySuggestionData).description?.substring(0, 200) + '...'}</p>
+        <p><strong>Description:</strong> ${isEdit ? "Edit to existing entry" : (submissionData as NewEntrySuggestionData).description?.substring(0, 200) + "..."}</p>
         <br>
         <p>Please review this submission in the admin panel.</p>
-      `
+      `,
     };
 
-    console.log(`Sending admin notification email to: ${process.env.FROM_EMAIL}`);
+    console.log(
+      `Sending admin notification email to: ${process.env.FROM_EMAIL}`,
+    );
     await sgMail.send(adminMsg);
-    console.log(`Admin notification email sent successfully to: ${process.env.FROM_EMAIL}`);
-
+    console.log(
+      `Admin notification email sent successfully to: ${process.env.FROM_EMAIL}`,
+    );
   } catch (error) {
-    console.error('Error sending email notification:', error);
-    console.error('Email error details:', {
+    console.error("Error sending email notification:", error);
+    console.error("Email error details:", {
       hasApiKey: !!process.env.SENDGRID_API_KEY,
       hasFromEmail: !!process.env.FROM_EMAIL,
       submitterEmail,
       submitterName,
-      entryName: type === 'edit'
-        ? (submissionData as EditEntrySuggestionData).entryName
-        : (submissionData as NewEntrySuggestionData).name
+      entryName:
+        type === "edit"
+          ? (submissionData as EditEntrySuggestionData).entryName
+          : (submissionData as NewEntrySuggestionData).name,
     });
   }
 }
@@ -93,7 +109,9 @@ async function sendSubmissionNotification(
  * @param id The ID of the entry to fetch.
  * @returns A promise that resolves to the matching entry or null if not found.
  */
-export async function getEntryById(id: string | number): Promise<EntryWithReferences | null> {
+export async function getEntryById(
+  id: string | number,
+): Promise<EntryWithReferences | null> {
   return getEntryByIdFromDatabase(String(id));
 }
 
@@ -102,11 +120,12 @@ export async function getEntryById(id: string | number): Promise<EntryWithRefere
  * @param query The search string.
  * @returns A promise that resolves to an array of matching entries with references.
  */
-export async function searchEntriesByName(query: string): Promise<EntryWithReferences[]> {
-
+export async function searchEntriesByName(
+  query: string,
+): Promise<EntryWithReferences[]> {
   const client = await getClient();
   try {
-    if (!query || query.trim() === '') {
+    if (!query || query.trim() === "") {
       return [];
     }
 
@@ -179,42 +198,43 @@ export async function searchEntriesByName(query: string): Promise<EntryWithRefer
          ORDER BY
             priority ASC, ending_boost ASC, title_length ASC, e.title ASC
          LIMIT 10`,
-      [searchQuery, trimmedQuery, `${trimmedQuery}%`]
+      [searchQuery, trimmedQuery, `${trimmedQuery}%`],
     );
 
-    return res.rows.map(row => transformDbRowToEntry(row)) as EntryWithReferences[];
-
+    return res.rows.map((row) =>
+      transformDbRowToEntry(row),
+    ) as EntryWithReferences[];
   } catch (error) {
     console.error("Failed to search entries by name:", error);
     throw new Error("Failed to search entries.");
   } finally {
     client.release();
   }
-
 }
-
 
 /**
  * Submits a new entry suggestion to the database.
  * @param submission The new user submission data.
  * @returns A promise that resolves when the submission is created.
  */
-export async function submitNewEntrySuggestion(submission: NewUserSubmission<NewEntrySuggestionData>): Promise<void> {
-  console.log('[SUBMISSION] Creating new entry submission in database...');
+export async function submitNewEntrySuggestion(
+  submission: NewUserSubmission<NewEntrySuggestionData>,
+): Promise<void> {
+  console.log("[SUBMISSION] Creating new entry submission in database...");
   await createSubmissionInDatabase(submission);
-  console.log('[SUBMISSION] Database entry created successfully');
+  console.log("[SUBMISSION] Database entry created successfully");
 
   // Send email notification after successful submission
-  console.log('[SUBMISSION] Attempting to send email notifications...');
-  console.log('[SUBMISSION] Submitter email:', submission.submitterEmail);
-  console.log('[SUBMISSION] Submitter name:', submission.submitterName);
+  console.log("[SUBMISSION] Attempting to send email notifications...");
+  console.log("[SUBMISSION] Submitter email:", submission.submitterEmail);
+  console.log("[SUBMISSION] Submitter name:", submission.submitterName);
   await sendSubmissionNotification(
-    'new',
+    "new",
     submission.data,
     submission.submitterEmail,
-    submission.submitterName
+    submission.submitterName,
   );
-  console.log('[SUBMISSION] Email notifications completed');
+  console.log("[SUBMISSION] Email notifications completed");
 }
 
 /**
@@ -222,22 +242,24 @@ export async function submitNewEntrySuggestion(submission: NewUserSubmission<New
  * @param submission The edit user submission data.
  * @returns A promise that resolves when the submission is created.
  */
-export async function submitEditEntrySuggestion(submission: NewUserSubmission<EditEntrySuggestionData>): Promise<void> {
-  console.log('[SUBMISSION] Creating edit entry submission in database...');
+export async function submitEditEntrySuggestion(
+  submission: NewUserSubmission<EditEntrySuggestionData>,
+): Promise<void> {
+  console.log("[SUBMISSION] Creating edit entry submission in database...");
   await createSubmissionInDatabase(submission);
-  console.log('[SUBMISSION] Database entry created successfully');
+  console.log("[SUBMISSION] Database entry created successfully");
 
   // Send email notification after successful submission
-  console.log('[SUBMISSION] Attempting to send email notifications...');
-  console.log('[SUBMISSION] Submitter email:', submission.submitterEmail);
-  console.log('[SUBMISSION] Submitter name:', submission.submitterName);
+  console.log("[SUBMISSION] Attempting to send email notifications...");
+  console.log("[SUBMISSION] Submitter email:", submission.submitterEmail);
+  console.log("[SUBMISSION] Submitter name:", submission.submitterName);
   await sendSubmissionNotification(
-    'edit',
+    "edit",
     submission.data,
     submission.submitterEmail,
-    submission.submitterName
+    submission.submitterName,
   );
-  console.log('[SUBMISSION] Email notifications completed');
+  console.log("[SUBMISSION] Email notifications completed");
 }
 
 /**
