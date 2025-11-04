@@ -8,6 +8,26 @@ import type {
 import { getClient } from "./db";
 import { PoolClient } from "pg";
 
+export async function isAdminEmail(email: string): Promise<boolean> {
+  if (!email) {
+    return false;
+  }
+
+  const client = await getClient();
+  try {
+    const result = await client.query(
+      'SELECT 1 FROM codex.admins WHERE LOWER(email) = LOWER($1) LIMIT 1',
+      [email]
+    );
+    return result.rowCount > 0;
+  } catch (error) {
+    console.error('Failed to verify admin email:', error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 
 export type EntryWithReferences = AnyEntry & {
   references?: ReferencedEntry[];

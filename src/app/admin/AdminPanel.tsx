@@ -39,6 +39,7 @@ import {
     applyApprovedSubmissionToDatabase,
     fetchEntryById,
     fetchAllEntries,
+    verifyAdminEmail,
 } from './actions';
 import { getOAuthConfig } from '@/lib/auth';
 
@@ -116,7 +117,7 @@ export default function AdminPanel() {
         window.location.href = `${oauthConfig.AUTH_SERVER_URL}/api/oauth/authorize?response_type=code&client_id=${oauthConfig.CLIENT_ID}&redirect_uri=${encodeURIComponent(oauthConfig.REDIRECT_URI)}&scope=openid%20profile%20email&state=${encodeURIComponent(state)}`;
     };
 
-    const handleLogout = () => {
+    const handleLogout = useCallback(() => {
         // Clear all stored auth data
         localStorage.removeItem('user_info');
         localStorage.removeItem('access_token');
@@ -126,7 +127,7 @@ export default function AdminPanel() {
         setUserInfo(null);
         setIsAuthenticated(false);
         setError(null);
-    };
+    }, []);
 
     // Initialize OAuth configuration and check for stored user info
     useEffect(() => {
@@ -140,16 +141,35 @@ export default function AdminPanel() {
                 const storedUserInfo = localStorage.getItem('user_info');
                 if (storedUserInfo) {
                     try {
-                        const parsedUserInfo = JSON.parse(storedUserInfo);
-                        setUserInfo(parsedUserInfo);
-                        setIsAuthenticated(true);
-                    } catch (err) {
-
+                        const parsedUserInfo: UserInfo = JSON.parse(storedUserInfo);
+                        if (parsedUserInfo?.email) {
+                            try {
+                                const hasAccess = await verifyAdminEmail(parsedUserInfo.email);
+                                if (hasAccess) {
+                                    setUserInfo(parsedUserInfo);
+                                    setIsAuthenticated(true);
+                                    setError(null);
+                                } else {
+                                    handleLogout();
+                                    setError('You do not have admin access. Please contact the Codex team if you believe this is a mistake.');
+                                }
+                            } catch (verificationError) {
+                                console.error('Failed to verify admin access:', verificationError);
+                                setIsAuthenticated(false);
+                                setError('Failed to verify admin access. Please try again later.');
+                            }
+                        } else {
+                            handleLogout();
+                            setError('Unable to determine the authenticated email address. Please log in again.');
+                        }
+                    } catch (parseError) {
+                        console.error('Failed to parse stored user info:', parseError);
                         localStorage.removeItem('user_info');
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
                     }
                 }
             } catch (err) {
-
                 setError('Failed to load OAuth configuration');
             } finally {
                 setLoading(false);
@@ -157,7 +177,7 @@ export default function AdminPanel() {
         };
 
         initializeApp();
-    }, []);
+    }, [handleLogout, verifyAdminEmail]);
 
     const refetchAllData = useCallback(async () => {
         setIsLoadingEntries(true);

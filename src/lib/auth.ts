@@ -33,3 +33,32 @@ export async function getOAuthConfig(): Promise<OauthClient> {
 export async function exchangeCodeForToken(params: TokenExchangeParams) {
   return authClient.exchangeCodeForToken(params);
 }
+
+export async function getUserInfo(accessToken: string) {
+  const authServerUrl = authConfig.client.AUTH_SERVER_URL;
+  if (!authServerUrl) {
+    throw new Error('Auth server URL is not configured');
+  }
+
+  const response = await fetch(`${authServerUrl}/api/oauth/userinfo`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    let errorDetail = 'Failed to fetch user info';
+    try {
+      const body = await response.json();
+      errorDetail =
+        body.error_description || body.error || body.message || `${response.status} ${response.statusText}`;
+    } catch {
+      // Ignore JSON parsing error and use the default message
+    }
+
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}

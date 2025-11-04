@@ -13,7 +13,12 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh"
+    "firebase:secrets": "/usr/bin/env bash scripts/firebase-secrets.sh",
+    "db:generate:migration": "tsx scripts/db-generate-migration.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts up",
+    "db:migrate:up": "tsx scripts/db-migrate.ts up",
+    "db:migrate:down": "tsx scripts/db-migrate.ts down",
+    "db:migrate:redo": "tsx scripts/db-migrate.ts redo"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -76,6 +81,8 @@
     "@types/react-dom": "^18",
     "csv-parser": "^3.2.0",
     "dotenv-cli": "^8.0.0",
+    "eslint": "9.39.1",
+    "eslint-config-next": "16.0.1",
     "genkit-cli": "^1.8.0",
     "node-pg-migrate": "^7.9.1",
     "postcss": "^8",

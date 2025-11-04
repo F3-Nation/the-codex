@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getOAuthConfig, exchangeCodeForToken } from '@/lib/auth';
+import { getOAuthConfig, exchangeCodeForToken, getUserInfo } from '@/lib/auth';
 
 interface OAuthConfig {
   CLIENT_ID: string;
@@ -123,18 +123,8 @@ function CallbackContent() {
         });
         const accessToken = tokenData.access_token as string;
 
-        // Get user info using access token
-        const userInfoResponse = await fetch(`${oauthConfig.AUTH_SERVER_URL}/api/oauth/userinfo`, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!userInfoResponse.ok) {
-          throw new Error('Failed to get user info');
-        }
-
-        const userData = await userInfoResponse.json();
+        // Get user info using access token (run server-side to avoid CORS issues)
+        const userData = await getUserInfo(accessToken);
 
         // Store user data and tokens in localStorage (in production, use secure storage)
         localStorage.setItem('user_info', JSON.stringify(userData));
