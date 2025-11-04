@@ -12,6 +12,64 @@ The F3 Codex App is the home for the F3 Exicon and Lexicon, replacing the legacy
 
 - **Responsive Design:** A mobile-friendly interface ensures a seamless experience across all devices.
 
+### URL Query Parameters
+
+The Exicon and Lexicon pages support URL query parameters for filtering and searching. This allows you to bookmark or share specific filtered views.
+
+#### Exicon Query Parameters
+
+The Exicon (`/exicon`) supports the following query parameters:
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `search` | string | Search exercises by name or alias | - |
+| `letter` | string | Filter by first letter (A-Z) | `All` |
+| `tags` | string | Comma-separated tag names | - |
+| `tagLogic` | string | Tag combination logic: `AND` or `OR` | `OR` |
+
+**Examples:**
+
+```
+# Search for exercises containing "burpee"
+/exicon?search=burpee
+
+# Filter exercises starting with "P"
+/exicon?letter=P
+
+# Show exercises with Core OR Legs tags
+/exicon?tags=Core,Legs
+
+# Show exercises with BOTH Core AND Legs tags
+/exicon?tags=Core,Legs&tagLogic=AND
+
+# Combined filters: search "pushup", starts with "P", has Core AND Arms tags
+/exicon?search=pushup&letter=P&tags=Core,Arms&tagLogic=AND
+```
+
+#### Lexicon Query Parameters
+
+The Lexicon (`/lexicon`) supports the following query parameters:
+
+| Parameter | Type | Description | Default |
+|-----------|------|-------------|---------|
+| `search` | string | Search terms by name, alias, or description | - |
+| `letter` | string | Filter by first letter (A-Z) | `All` |
+
+**Examples:**
+
+```
+# Search for terms containing "fitness"
+/lexicon?search=fitness
+
+# Filter terms starting with "F"
+/lexicon?letter=F
+
+# Combined: search "leader" and filter by "L"
+/lexicon?search=leader&letter=L
+```
+
+**Note:** All query parameters are automatically updated in the URL as you interact with the search and filter UI, making it easy to share or bookmark specific views.
+
 ### Getting Started
 
 To get a copy of this project up and running on your local machine for development and testing purposes, follow these steps.

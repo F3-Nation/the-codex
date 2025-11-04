@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Download, BookText, PencilLine } from 'lucide-react';
 import { EntryGrid } from '@/components/shared/EntryGrid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Filter } from 'lucide-react';
+import { Filter, Star } from 'lucide-react';
 import Link from 'next/link';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // A helper function to export to CSV
 // This function is robust and handles the potential for different alias types
@@ -159,6 +160,102 @@ export const LexiconClientPageContent = ({ initialEntries }: LexiconClientPageCo
             The official glossary of F3 terms.
           </p>
         </div>
+
+        {/* Common Terms Section */}
+        <Card className="shadow-sm mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Star className="h-5 w-5 text-primary" />
+              Essential F3 Terms
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="common-terms">
+                <AccordionTrigger>View Common F3 Terminology</AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Click any term to search for its full definition:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setSearchTerm('pax')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">PAX</span> - Workout participants
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('q')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Q</span> - Workout leader
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('fng')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">FNG</span> - Friendly New Guy
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('ao')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">AO</span> - Area of Operation
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('beatdown')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Beatdown</span> - The workout
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('cot')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">COT</span> - Circle of Trust
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('hc')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">HC</span> - Hard Commit
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('mumblechatter')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Mumblechatter</span> - Talking during workout
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('weinke')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Weinke</span> - Workout plan
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('coupon')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Coupon</span> - Workout equipment
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('six')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Six</span> - Your rear end
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('ruck')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Ruck</span> - Weighted backpack
+                    </button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
 
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search Lexicon..." />

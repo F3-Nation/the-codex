@@ -10,8 +10,9 @@ import type { ExiconEntry, Tag, FilterLogic, AnyEntry } from '@/lib/types';
 import { exportToCSV } from '@/lib/utils';
 import { TagFilter } from '@/components/exicon/TagFilter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Filter } from 'lucide-react';
+import { Filter, Star } from 'lucide-react';
 import Link from 'next/link';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface ExiconClientPageContentProps {
   initialEntries: (ExiconEntry & {
@@ -176,6 +177,84 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
             The official encyclopedia of F3 exercises.
           </p>
         </div>
+
+        {/* Common Exercises Section */}
+        <Card className="shadow-sm mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Star className="h-5 w-5 text-primary" />
+              Common Exercises
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="common-exercises">
+                <AccordionTrigger>View Essential F3 Exercises</AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Click any exercise name to view details or search for it:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <button
+                      onClick={() => setSearchTerm('merkin')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Merkin</span> - Push-up variant
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('burpee')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Burpee</span> - Full body exercise
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('squat')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Squat</span> - Leg strengthening
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('plank')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Plank</span> - Core stability
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('lunge')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Lunge</span> - Leg exercise
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('mountain climber')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Mountain Climber</span> - Cardio core
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('imperial walker')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">Imperial Walker</span> - Ab exercise
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('american hammer')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">American Hammer</span> - Core twist
+                    </button>
+                    <button
+                      onClick={() => setSearchTerm('ssh')}
+                      className="text-left px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="font-semibold">SSH</span> - Jumping jack
+                    </button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
 
         <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center">
           <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} placeholder="Search exercises by name or alias..." />
