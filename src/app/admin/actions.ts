@@ -14,6 +14,7 @@ import {
   updateSubmissionStatusInDatabase as apiUpdateSubmissionStatusInDatabase,
   applyApprovedSubmissionToDatabase as apiApplyApprovedSubmissionToDatabase,
   getEntryByIdFromDatabase as apiGetEntryByIdFromDatabase,
+  isAdminEmail as apiIsAdminEmail,
 } from '@/lib/api';
 import type { AnyEntry, EntryWithReferences, ExiconEntry, NewEntrySuggestionData, Tag, UserSubmissionBase, EditEntrySuggestionData } from '@/lib/types';
 import sgMail from '@sendgrid/mail';
@@ -114,6 +115,10 @@ async function sendStatusUpdateNotification(
 
 export async function fetchAllEntries(): Promise<AnyEntry[]> {
   return apiFetchAllEntries();
+}
+
+export async function verifyAdminEmail(email: string): Promise<boolean> {
+  return apiIsAdminEmail(email);
 }
 
 export async function createEntryInDatabase(
