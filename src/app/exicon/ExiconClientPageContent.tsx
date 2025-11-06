@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { SearchBar } from '@/components/shared/SearchBar';
 import { Button } from '@/components/ui/button';
 import { Download, Dumbbell, PencilLine } from 'lucide-react';
@@ -25,6 +25,7 @@ interface ExiconClientPageContentProps {
 export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClientPageContentProps) => {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
 
   // Initialize state from URL params
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +66,8 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
   }, [searchParams, allTags]);
 
   // Update URL when filters change
+  const searchParamsString = searchParams.toString();
+
   useEffect(() => {
     if (!isInitialized) return;
 
@@ -89,9 +92,25 @@ export const ExiconClientPageContent = ({ initialEntries, allTags }: ExiconClien
       params.set('letter', filterLetter);
     }
 
-    const newUrl = params.toString() ? `?${params.toString()}` : '/exicon';
-    router.replace(newUrl, { scroll: false });
-  }, [selectedTags, filterLogic, searchTerm, filterLetter, isInitialized, allTags, router]);
+    const nextSearch = params.toString();
+
+    if (nextSearch === searchParamsString) {
+      return;
+    }
+
+    const nextUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname;
+    router.replace(nextUrl, { scroll: false });
+  }, [
+    selectedTags,
+    filterLogic,
+    searchTerm,
+    filterLetter,
+    isInitialized,
+    allTags,
+    router,
+    pathname,
+    searchParamsString,
+  ]);
 
   const handleTagChange = (tagId: string) => {
     setSelectedTags((prevSelectedTags) =>
