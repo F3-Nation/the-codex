@@ -10,7 +10,7 @@ exports.shorthands = undefined;
  */
 exports.up = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: add_mentioned_entries_column_to_entries UP"
+    "[MIGRATION_LOG] Starting migration: add_mentioned_entries_column_to_entries UP",
   );
 
   pgm.sql(`
@@ -30,7 +30,7 @@ exports.up = (pgm) => {
   `);
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: add_mentioned_entries_column_to_entries UP"
+    "[MIGRATION_LOG] Finished migration: add_mentioned_entries_column_to_entries UP",
   );
 };
 
@@ -41,7 +41,7 @@ exports.up = (pgm) => {
  */
 exports.down = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: add_mentioned_entries_column_to_entries DOWN"
+    "[MIGRATION_LOG] Starting migration: add_mentioned_entries_column_to_entries DOWN",
   );
 
   pgm.sql(`
@@ -50,6 +50,6 @@ exports.down = (pgm) => {
   `);
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: add_mentioned_entries_column_to_entries DOWN"
+    "[MIGRATION_LOG] Finished migration: add_mentioned_entries_column_to_entries DOWN",
   );
 };

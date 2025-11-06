@@ -43,39 +43,47 @@ export function MentionTextArea({
   >([]);
   const [focusIndex, setFocusIndex] = useState(-1);
 
-  const debounce = useCallback(
-    (fn: (...args: any[]) => void, delay: number) => {
-      let timer: NodeJS.Timeout;
-      return (...args: any[]) => {
-        clearTimeout(timer);
-        timer = setTimeout(() => fn(...args), delay);
-      };
-    },
-    []
-  );
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const debouncedSearch = useCallback(
-    debounce(async (text: string) => {
-      setLoading(true);
-      try {
-        const data = await searchEntries(text);
-        setResults(data);
-        setFocusIndex(data.length > 0 ? 0 : -1);
-      } catch (e) {
-        console.error(e);
-        setResults([]);
-        setFocusIndex(-1);
-      } finally {
-        setLoading(false);
+    (text: string) => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
       }
-    }, 300),
-    [searchEntries, debounce]
+
+      searchTimerRef.current = setTimeout(async () => {
+        setLoading(true);
+        try {
+          const data = await searchEntries(text);
+          setResults(data);
+          setFocusIndex(data.length > 0 ? 0 : -1);
+        } catch (e) {
+          console.error(e);
+          setResults([]);
+          setFocusIndex(-1);
+        } finally {
+          setLoading(false);
+        }
+      }, 300);
+    },
+    [searchEntries],
   );
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (showAutocomplete && query) {
       debouncedSearch(query);
     } else {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
       setResults([]);
       setFocusIndex(-1);
     }
@@ -84,17 +92,16 @@ export function MentionTextArea({
   useEffect(() => {
     setMentions((prevMentions) => {
       const stillMentioned = prevMentions.filter((m) =>
-        value.includes(`@${m.name}`)
+        value.includes(`@${m.name}`),
       );
       const hasChanged =
         stillMentioned.length !== prevMentions.length ||
         !stillMentioned.every((m) => prevMentions.some((p) => p.id === m.id));
 
       if (hasChanged) {
-
         setTimeout(() => {
           onMentionsChange?.(
-            stillMentioned.map(({ id, name }) => ({ id, name }))
+            stillMentioned.map(({ id, name }) => ({ id, name })),
           );
         }, 0);
       }
@@ -169,7 +176,6 @@ export function MentionTextArea({
       const exists = prev.some((m) => m.id === entry.id);
       const next = exists ? prev : [...prev, { ...entry }];
       if (!exists) {
-
         setTimeout(() => {
           onMentionsChange?.(next.map(({ id, name }) => ({ id, name })));
         }, 0);
@@ -249,7 +255,7 @@ export function MentionTextArea({
               </span>
             )}
           </HoverCardContent>
-        </HoverCard>
+        </HoverCard>,
       );
       lastIndex = endIndex;
     });
@@ -291,7 +297,7 @@ export function MentionTextArea({
           ) {
             e.preventDefault();
             setFocusIndex(
-              (prev) => (prev - 1 + results.length) % results.length
+              (prev) => (prev - 1 + results.length) % results.length,
             );
           }
         }}
@@ -325,7 +331,7 @@ export function MentionTextArea({
                   key={entry.id}
                   className={cn(
                     "w-full text-left h-auto py-2 px-3 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors",
-                    focusIndex === index ? "bg-gray-100 dark:bg-gray-700" : ""
+                    focusIndex === index ? "bg-gray-100 dark:bg-gray-700" : "",
                   )}
                   onClick={() => handleSelect(entry)}
                 >

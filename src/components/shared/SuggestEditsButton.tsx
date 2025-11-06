@@ -1,12 +1,18 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Pencil } from 'lucide-react';
-import { SuggestionEditForm } from '@/components/submission/SuggestionEditForm';
-import { useToast } from '@/hooks/use-toast';
-import type { AnyEntry } from '@/lib/types';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Pencil } from "lucide-react";
+import { SuggestionEditForm } from "@/components/submission/SuggestionEditForm";
+import { useToast } from "@/hooks/use-toast";
+import type { AnyEntry } from "@/lib/types";
 
 interface SuggestEditsButtonProps {
   entry: AnyEntry;

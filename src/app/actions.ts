@@ -1,8 +1,11 @@
 // src/app/actions.ts
-'use server';
+"use server";
 
-import { autoLinkReferences, type AutoLinkReferencesInput } from '@/ai/flows/auto-link-references';
-import { getAllEntryNamesFromDatabase } from '@/lib/api'; // Import new DB function
+import {
+  autoLinkReferences,
+  type AutoLinkReferencesInput,
+} from "@/ai/flows/auto-link-references";
+import { getAllEntryNamesFromDatabase } from "@/lib/api"; // Import new DB function
 
 export async function getLinkedText(text: string): Promise<string> {
   // --- BEGIN TEMPORARY FIX for "429 Too Many Requests" ---

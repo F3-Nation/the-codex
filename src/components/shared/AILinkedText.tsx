@@ -1,5 +1,5 @@
 // src/components/shared/AILinkedText.tsx
-'use client'; // Marked as client component. If AI linking is purely server-side, this might not be needed or used differently.
+"use client"; // Marked as client component. If AI linking is purely server-side, this might not be needed or used differently.
 
 // This component is currently not used by EntryCard as AI linking is done server-side (or bypassed).
 // It can be kept for other potential uses or removed if not needed.

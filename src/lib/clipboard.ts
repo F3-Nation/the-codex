@@ -1,6 +1,6 @@
 export interface CopyResult {
   success: boolean;
-  method: 'clipboard' | 'fallback' | 'textArea' | 'selection';
+  method: "clipboard" | "fallback" | "textArea" | "selection";
   error?: string;
 }
 
@@ -13,15 +13,15 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
-      return { success: true, method: 'clipboard' };
+      return { success: true, method: "clipboard" };
     } catch (error) {
-      console.warn('Clipboard API failed:', error);
+      console.warn("Clipboard API failed:", error);
     }
   }
 
   // Strategy 2: Textarea fallback (works in iframes)
   try {
-    const textArea = document.createElement('textarea');
+    const textArea = document.createElement("textarea");
     textArea.value = text;
     textArea.style.cssText = `
       position: fixed;
@@ -37,20 +37,20 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
     textArea.focus();
     textArea.select();
 
-    const successful = document.execCommand('copy');
+    const successful = document.execCommand("copy");
     document.body.removeChild(textArea);
 
     if (successful) {
-      return { success: true, method: 'textArea' };
+      return { success: true, method: "textArea" };
     }
   } catch (error) {
-    console.warn('TextArea copy failed:', error);
+    console.warn("TextArea copy failed:", error);
   }
 
   // Strategy 3: Selection API fallback
   try {
     const range = document.createRange();
-    const span = document.createElement('span');
+    const span = document.createElement("span");
     span.textContent = text;
     span.style.cssText = `
       position: fixed;
@@ -68,24 +68,25 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
       selection.removeAllRanges();
       selection.addRange(range);
 
-      const successful = document.execCommand('copy');
+      const successful = document.execCommand("copy");
       selection.removeAllRanges();
       document.body.removeChild(span);
 
       if (successful) {
-        return { success: true, method: 'selection' };
+        return { success: true, method: "selection" };
       }
     }
 
     document.body.removeChild(span);
   } catch (error) {
-    console.warn('Selection copy failed:', error);
+    console.warn("Selection copy failed:", error);
   }
 
   return {
     success: false,
-    method: 'fallback',
-    error: 'All copy methods failed. This may be due to browser security restrictions in iframe context.'
+    method: "fallback",
+    error:
+      "All copy methods failed. This may be due to browser security restrictions in iframe context.",
   };
 }
 
@@ -105,7 +106,7 @@ export function isInIframe(): boolean {
  */
 export function showCopyPrompt(text: string): void {
   // Create a modal-like prompt for manual copying
-  const overlay = document.createElement('div');
+  const overlay = document.createElement("div");
   overlay.style.cssText = `
     position: fixed;
     inset: 0;
@@ -117,7 +118,7 @@ export function showCopyPrompt(text: string): void {
     padding: 20px;
   `;
 
-  const modal = document.createElement('div');
+  const modal = document.createElement("div");
   modal.style.cssText = `
     background: white;
     border-radius: 8px;
@@ -127,7 +128,7 @@ export function showCopyPrompt(text: string): void {
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   `;
 
-  const textArea = document.createElement('textarea');
+  const textArea = document.createElement("textarea");
   textArea.value = text;
   textArea.style.cssText = `
     width: 100%;
@@ -149,7 +150,7 @@ export function showCopyPrompt(text: string): void {
     </p>
   `;
 
-  const buttonContainer = document.createElement('div');
+  const buttonContainer = document.createElement("div");
   buttonContainer.style.cssText = `
     display: flex;
     gap: 8px;
@@ -157,8 +158,8 @@ export function showCopyPrompt(text: string): void {
     margin-top: 16px;
   `;
 
-  const selectButton = document.createElement('button');
-  selectButton.textContent = 'Select All';
+  const selectButton = document.createElement("button");
+  selectButton.textContent = "Select All";
   selectButton.style.cssText = `
     padding: 8px 16px;
     background: #007bff;
@@ -173,8 +174,8 @@ export function showCopyPrompt(text: string): void {
     textArea.setSelectionRange(0, textArea.value.length);
   };
 
-  const closeButton = document.createElement('button');
-  closeButton.textContent = 'Close';
+  const closeButton = document.createElement("button");
+  closeButton.textContent = "Close";
   closeButton.style.cssText = `
     padding: 8px 16px;
     background: #6c757d;
@@ -204,18 +205,18 @@ export function showCopyPrompt(text: string): void {
 
   // Close on escape
   const handleEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       document.body.removeChild(overlay);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("keydown", handleEscape);
     }
   };
-  document.addEventListener('keydown', handleEscape);
+  document.addEventListener("keydown", handleEscape);
 
   // Close on overlay click
   overlay.onclick = (e) => {
     if (e.target === overlay) {
       document.body.removeChild(overlay);
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener("keydown", handleEscape);
     }
   };
 }

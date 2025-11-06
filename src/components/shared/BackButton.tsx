@@ -1,27 +1,21 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { getBackUrl, isInIframe } from '@/lib/route-utils';
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { getBackUrl, isInIframe } from "@/lib/route-utils";
 
 interface BackButtonProps {
-  entryType: 'exicon' | 'lexicon';
+  entryType: "exicon" | "lexicon";
   className?: string;
 }
 
 export function BackButton({ entryType, className }: BackButtonProps) {
-  const [backUrl, setBackUrl] = useState(`/${entryType}`);
-  const [inIframe, setInIframe] = useState(false);
+  const inIframe = isInIframe();
+  const backUrl = getBackUrl(entryType);
 
-  useEffect(() => {
-    const isInFrame = isInIframe();
-    setInIframe(isInFrame);
-    setBackUrl(getBackUrl(entryType));
-  }, [entryType]);
-
-  const displayText = entryType === 'lexicon' ? 'Back to Lexicon' : 'Back to Exicon';
+  const displayText =
+    entryType === "lexicon" ? "Back to Lexicon" : "Back to Exicon";
 
   const handleClick = () => {
     if (inIframe) {

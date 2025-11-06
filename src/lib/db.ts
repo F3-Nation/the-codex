@@ -1,5 +1,5 @@
 // src/lib/db.ts
-import { Pool, type PoolClient } from 'pg';
+import { Pool, type PoolClient } from "pg";
 
 let pool: Pool | null = null;
 
@@ -7,11 +7,11 @@ function initializePool(): Pool {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    console.error('❌ CRITICAL: DATABASE_URL is not set in the environment.');
-    throw new Error('DATABASE_URL is missing. Cannot connect to the database.');
+    console.error("❌ CRITICAL: DATABASE_URL is not set in the environment.");
+    throw new Error("DATABASE_URL is missing. Cannot connect to the database.");
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.NODE_ENV === "production";
   const ssl = isProduction ? { rejectUnauthorized: false } : false;
 
   const newPool = new Pool({
@@ -19,8 +19,8 @@ function initializePool(): Pool {
     ssl,
   });
 
-  newPool.on('error', (err) => {
-    console.error('Unexpected error on idle PostgreSQL client:', err);
+  newPool.on("error", (err) => {
+    console.error("Unexpected error on idle PostgreSQL client:", err);
   });
 
   return newPool;
@@ -39,7 +39,7 @@ export async function getClient(): Promise<PoolClient> {
     const client = await pool.connect();
     return client;
   } catch (err) {
-    console.error('❌ Failed to acquire client from PostgreSQL pool:', err);
+    console.error("❌ Failed to acquire client from PostgreSQL pool:", err);
     throw err;
   }
 }

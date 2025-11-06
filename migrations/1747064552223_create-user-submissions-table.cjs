@@ -9,7 +9,7 @@ exports.shorthands = undefined;
  */
 exports.up = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create-user-submissions-table UP"
+    "[MIGRATION_LOG] Starting migration: create-user-submissions-table UP",
   );
 
   pgm.createTable("user_submissions", {
@@ -59,7 +59,7 @@ exports.up = (pgm) => {
   `);
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: create-user-submissions-table UP"
+    "[MIGRATION_LOG] Finished migration: create-user-submissions-table UP",
   );
 };
 
@@ -69,17 +69,17 @@ exports.up = (pgm) => {
  */
 exports.down = (pgm) => {
   console.log(
-    "[MIGRATION_LOG] Starting migration: create-user-submissions-table DOWN"
+    "[MIGRATION_LOG] Starting migration: create-user-submissions-table DOWN",
   );
 
   pgm.sql(
-    `DROP TRIGGER IF EXISTS trigger_user_submissions_updated_at ON user_submissions;`
+    `DROP TRIGGER IF EXISTS trigger_user_submissions_updated_at ON user_submissions;`,
   );
   pgm.sql(`DROP FUNCTION IF EXISTS update_updated_at_column;`);
 
   pgm.dropTable("user_submissions");
 
   console.log(
-    "[MIGRATION_LOG] Finished migration: create-user-submissions-table DOWN"
+    "[MIGRATION_LOG] Finished migration: create-user-submissions-table DOWN",
   );
 };

@@ -20,12 +20,12 @@ The Exicon and Lexicon pages support URL query parameters for filtering and sear
 
 The Exicon (`/exicon`) supports the following query parameters:
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `search` | string | Search exercises by name or alias | - |
-| `letter` | string | Filter by first letter (A-Z) | `All` |
-| `tags` | string | Comma-separated tag names | - |
-| `tagLogic` | string | Tag combination logic: `AND` or `OR` | `OR` |
+| Parameter  | Type   | Description                          | Default |
+| ---------- | ------ | ------------------------------------ | ------- |
+| `search`   | string | Search exercises by name or alias    | -       |
+| `letter`   | string | Filter by first letter (A-Z)         | `All`   |
+| `tags`     | string | Comma-separated tag names            | -       |
+| `tagLogic` | string | Tag combination logic: `AND` or `OR` | `OR`    |
 
 **Examples:**
 
@@ -50,10 +50,10 @@ The Exicon (`/exicon`) supports the following query parameters:
 
 The Lexicon (`/lexicon`) supports the following query parameters:
 
-| Parameter | Type | Description | Default |
-|-----------|------|-------------|---------|
-| `search` | string | Search terms by name, alias, or description | - |
-| `letter` | string | Filter by first letter (A-Z) | `All` |
+| Parameter | Type   | Description                                 | Default |
+| --------- | ------ | ------------------------------------------- | ------- |
+| `search`  | string | Search terms by name, alias, or description | -       |
+| `letter`  | string | Filter by first letter (A-Z)                | `All`   |
 
 **Examples:**
 

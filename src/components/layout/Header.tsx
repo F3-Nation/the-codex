@@ -1,14 +1,14 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Menu, Flame } from 'lucide-react';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu, Flame } from "lucide-react";
 
 const navItems = [
-  { href: '/', label: 'Home' },
-  { href: '/exicon', label: 'Exicon' },
-  { href: '/lexicon', label: 'Lexicon' },
-  { href: '/submit', label: 'Submit Entry' },
-  { href: '/faq', label: 'FAQ' },
+  { href: "/", label: "Home" },
+  { href: "/exicon", label: "Exicon" },
+  { href: "/lexicon", label: "Lexicon" },
+  { href: "/submit", label: "Submit Entry" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 export function Header() {

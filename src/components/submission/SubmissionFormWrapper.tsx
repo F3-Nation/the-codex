@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Suspense } from 'react';
-import { SubmissionFormContent } from './SubmissionForm';
+import { Suspense } from "react";
+import { SubmissionFormContent } from "./SubmissionForm";
 
 export function SubmissionForm() {
   return (

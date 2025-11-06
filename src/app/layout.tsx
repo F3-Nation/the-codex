@@ -1,24 +1,24 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { ConditionalLayout } from '@/components/layout/ConditionalLayout';
-import { Toaster } from '@/components/ui/toaster';
-import { Geist } from 'next/font/google';
-import { Geist_Mono } from 'next/font/google';
-import Script from 'next/script';
+import type { Metadata } from "next";
+import "./globals.css";
+import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+import { Toaster } from "@/components/ui/toaster";
+import { Geist } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
+import Script from "next/script";
 
 const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: 'F3 Codex - Exicon & Lexicon',
-  description: 'The official Exicon and Lexicon for F3 Nation.',
+  title: "F3 Codex - Exicon & Lexicon",
+  description: "The official Exicon and Lexicon for F3 Nation.",
 };
 
 export default function RootLayout({
