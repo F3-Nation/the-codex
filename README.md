@@ -169,3 +169,6 @@ We welcome contributions! If you would like to help improve this project, please
 4.  Push to the branch (`git push origin feature/your-feature-name`).
 
 5.  Open a Pull Request.
+
+# Origins
+In May 2025, F3 Nation announced a Hackathon to build a new app to host the Nation's exicon and lexicon. 7 High Impact Men answered that call. Of the submissions made the Nation SLT chose [Roma](https://github.com/victorSauceda) as the winner. Over the following months he worked with the Nation's IT group to incorporate it into the central database and tech stack. Thanks to his inspiration and effort, and contributions of the F3 dev community, the men of F3 Nation now have a living and breathing repository of our culture's language.
