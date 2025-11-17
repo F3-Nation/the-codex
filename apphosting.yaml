@@ -49,3 +49,13 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: SENDGRID_API_KEY
+    secret: codex-sendgrid-api-key
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FROM_EMAIL
+    secret: codex-from-email
+    availability:
+      - BUILD
+      - RUNTIME
