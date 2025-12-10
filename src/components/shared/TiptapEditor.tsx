@@ -9,6 +9,7 @@ import { TableRow } from "@tiptap/extension-table-row";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import Placeholder from "@tiptap/extension-placeholder";
+import Blockquote from "@tiptap/extension-blockquote";
 import { TiptapToolbar } from "./TiptapToolbar";
 import type { EntryWithReferences } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,16 @@ interface TiptapEditorProps {
   editable?: boolean;
 }
 
+// Custom blockquote extension without quotes
+const CustomBlockquote = Blockquote.extend({
+  name: 'blockquote',
+
+  // Override the renderHTML method to not add quotes
+  renderHTML({ HTMLAttributes }) {
+    return ['blockquote', HTMLAttributes, 0]
+  },
+});
+
 // Mention suggestion component
 function MentionList({
   items,
@@ -35,23 +46,17 @@ function MentionList({
   command: (item: EntryWithReferences) => void;
   resetKey: number;
 }) {
-  // selectedIndex starts at 0. It resets automatically because the Tiptap
-  // extension logic is now designed to destroy and recreate (remount)
-  // this component when the items change by leveraging the 'resetKey'.
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Wrap onKeyDown in useCallback to prevent it from changing on every render
   const onKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      // Ensure calculation wraps around correctly
       setSelectedIndex((prevIndex) => (prevIndex + items.length - 1) % items.length);
       return true;
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      // Ensure calculation wraps around correctly
       setSelectedIndex((prevIndex) => (prevIndex + 1) % items.length);
       return true;
     }
@@ -65,21 +70,18 @@ function MentionList({
     }
 
     return false;
-  }, [items, selectedIndex, command]); // Dependencies for useCallback
+  }, [items, selectedIndex, command]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // We check to see if the event has been handled to prevent calling onKeyDown multiple times.
-      if (!onKeyDown(event)) {
-        // If onKeyDown returns false, it means the key was not handled by the mention list
-      }
+      onKeyDown(event);
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onKeyDown]); // Now onKeyDown is stable thanks to useCallback
+  }, [onKeyDown]);
 
   if (items.length === 0) {
     return (
@@ -123,7 +125,6 @@ export function TiptapEditor({
   editable = true,
 }: TiptapEditorProps) {
   const [isLoading, setIsLoading] = useState(false);
-  // State to track changes in search results to force remount (key prop mechanism)
   const [suggestionKey, setSuggestionKey] = useState(0);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -131,8 +132,16 @@ export function TiptapEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({
+        // Disable the default blockquote
+        blockquote: false,
         heading: {
           levels: [2, 3],
+        },
+      }),
+      // Use our custom blockquote without quotes
+      CustomBlockquote.configure({
+        HTMLAttributes: {
+          class: 'rich-blockquote',
         },
       }),
       Table.configure({
@@ -154,7 +163,6 @@ export function TiptapEditor({
           items: async ({ query }) => {
             if (query.length < 1) return [];
 
-            // Debounced search
             return new Promise((resolve) => {
               if (searchTimerRef.current) {
                 clearTimeout(searchTimerRef.current);
@@ -164,11 +172,8 @@ export function TiptapEditor({
                 try {
                   setIsLoading(true);
                   const results = await searchEntries(query);
-
-                  // Increment key when new results are fetched to force MentionList remount
                   setSuggestionKey(k => k + 1);
-
-                  resolve(results.slice(0, 10)); // Limit to 10 results
+                  resolve(results.slice(0, 10));
                 } catch (error) {
                   console.error("Error searching entries:", error);
                   resolve([]);
@@ -187,13 +192,9 @@ export function TiptapEditor({
 
             return {
               onStart: (props) => {
-                // Pass the suggestionKey as the 'resetKey' prop
                 component = new ReactRenderer(MentionList, {
                   props: { ...props, resetKey: suggestionKey },
                   editor: props.editor,
-                  // The key property must be set when the component is rendered, not after.
-                  // We rely on Tiptap's internal logic which often remounts the component
-                  // when props change, especially if a new set of items is returned.
                 });
 
                 if (!props.clientRect) {
@@ -212,9 +213,7 @@ export function TiptapEditor({
               },
 
               onUpdate(props) {
-                // Pass the updated key during prop updates
                 component.updateProps({ ...props, resetKey: suggestionKey });
-                // REMOVED: component.key = suggestionKey; // Avoids TypeScript error
 
                 if (!props.clientRect) {
                   return;
@@ -258,7 +257,6 @@ export function TiptapEditor({
       const html = editor.getHTML();
       onChange(html);
 
-      // Extract mentions and notify parent
       if (onMentionsChange) {
         const mentions: { id: string; name: string }[] = [];
         editor.state.doc.descendants((node) => {
@@ -274,14 +272,12 @@ export function TiptapEditor({
     },
   });
 
-  // Update editor content when value prop changes
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value);
     }
   }, [value, editor]);
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (searchTimerRef.current) {
