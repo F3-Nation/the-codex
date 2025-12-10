@@ -32,7 +32,9 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
   }
 
   const totalPages = Math.ceil(entries.length / entriesPerPage);
-  const startIndex = (currentPage - 1) * entriesPerPage;
+  // Clamp current page to valid range when entries change
+  const validCurrentPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (validCurrentPage - 1) * entriesPerPage;
   const endIndex = startIndex + entriesPerPage;
   const paginatedEntries = entries.slice(startIndex, endIndex);
 
@@ -42,13 +44,13 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
   };
 
   const goToPreviousPage = () => {
-    const newPage = Math.max(currentPage - 1, 1);
+    const newPage = Math.max(validCurrentPage - 1, 1);
     setCurrentPage(newPage);
     setPageInput(newPage.toString());
   };
 
   const goToNextPage = () => {
-    const newPage = Math.min(currentPage + 1, totalPages);
+    const newPage = Math.min(validCurrentPage + 1, totalPages);
     setCurrentPage(newPage);
     setPageInput(newPage.toString());
   };
@@ -68,7 +70,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
     if (!isNaN(pageNumber) && pageNumber >= 1 && pageNumber <= totalPages) {
       setCurrentPage(pageNumber);
     } else {
-      setPageInput(currentPage.toString());
+      setPageInput(validCurrentPage.toString());
     }
   };
 
@@ -91,7 +93,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
               variant="outline"
               size="sm"
               onClick={goToFirstPage}
-              disabled={currentPage === 1}
+              disabled={validCurrentPage === 1}
               title="First page"
             >
               <ChevronsLeft className="h-4 w-4" />
@@ -100,7 +102,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
               variant="outline"
               size="sm"
               onClick={goToPreviousPage}
-              disabled={currentPage === 1}
+              disabled={validCurrentPage === 1}
             >
               <ChevronLeft className="h-4 w-4 mr-1" />
               Previous
@@ -126,7 +128,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
               variant="outline"
               size="sm"
               onClick={goToNextPage}
-              disabled={currentPage === totalPages}
+              disabled={validCurrentPage === totalPages}
             >
               Next
               <ChevronRight className="h-4 w-4 ml-1" />
@@ -135,7 +137,7 @@ export function EntryGrid({ entries, label }: EntryGridProps) {
               variant="outline"
               size="sm"
               onClick={goToLastPage}
-              disabled={currentPage === totalPages}
+              disabled={validCurrentPage === totalPages}
               title="Last page"
             >
               <ChevronsRight className="h-4 w-4" />
