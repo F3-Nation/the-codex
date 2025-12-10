@@ -43,6 +43,9 @@ import {
   showCopyPrompt,
 } from "@/lib/clipboard";
 import { generateEntryUrl, getEntryBaseUrl } from "@/lib/route-utils";
+import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
+import { isHtmlContent } from "@/lib/sanitizeHtml";
+import { convertPlainTextToHtml } from "@/lib/textToHtml";
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -256,19 +259,26 @@ export function EntryCard({ entry }: EntryCardProps) {
 
   const previewDescriptionContent = useMemo(() => {
     if (!entry.description) return "";
-    const needsTruncation = entry.description.length > MAX_DESC_LENGTH_PREVIEW;
-    if (needsTruncation) {
-      return entry.description.substring(0, MAX_DESC_LENGTH_PREVIEW) + "...";
+    // Convert to HTML if plain text
+    if (!isHtmlContent(entry.description)) {
+      return convertPlainTextToHtml(entry.description, entry.references || []);
     }
     return entry.description;
-  }, [entry.description]);
+  }, [entry.description, entry.references]);
 
   const showGradient = useMemo(() => {
     if (!entry.description) return false;
     return entry.description.length > MAX_DESC_LENGTH_PREVIEW;
   }, [entry.description]);
 
-  const fullDescription = entry.description || "";
+  const fullDescription = useMemo(() => {
+    if (!entry.description) return "";
+    // Convert to HTML if plain text
+    if (!isHtmlContent(entry.description)) {
+      return convertPlainTextToHtml(entry.description, entry.references || []);
+    }
+    return entry.description;
+  }, [entry.description, entry.references]);
 
   const handleSuggestionSubmit = (suggestionData: any) => {
     toast({
@@ -383,11 +393,12 @@ export function EntryCard({ entry }: EntryCardProps) {
       <CardContent className="flex-grow space-y-3">
         <div className="prose prose-sm max-w-none text-foreground break-words relative max-h-[4.5rem] overflow-hidden">
           <div>
-            {renderDescriptionWithMentions(
-              previewDescriptionContent,
-              entry.resolvedMentionsData,
-              "default",
-            )}
+            <RichTextDisplay
+              htmlContent={previewDescriptionContent}
+              mentionedEntries={entry.resolvedMentionsData}
+              truncate={true}
+              maxLength={MAX_DESC_LENGTH_PREVIEW}
+            />
           </div>
           {showGradient && (
             <div className="absolute bottom-0 left-0 w-full h-6 bg-gradient-to-t from-card via-card/80 to-transparent" />
@@ -437,11 +448,10 @@ export function EntryCard({ entry }: EntryCardProps) {
           <div className="flex-grow overflow-y-auto space-y-4 pr-3 py-2">
             <DialogDescription asChild>
               <div className="prose prose-base max-w-none text-foreground break-words leading-relaxed">
-                {renderDescriptionWithMentions(
-                  fullDescription,
-                  entry.resolvedMentionsData,
-                  "vibrant",
-                )}
+                <RichTextDisplay
+                  htmlContent={fullDescription}
+                  mentionedEntries={entry.resolvedMentionsData}
+                />
               </div>
             </DialogDescription>
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@/styles/tiptap.css";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { Toaster } from "@/components/ui/toaster";
 import { Geist } from "next/font/google";

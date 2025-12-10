@@ -18,6 +18,9 @@ import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { SuggestEditsButton } from "@/components/shared/SuggestEditsButton";
 import { CopyEntryUrlButton } from "@/components/shared/CopyEntryUrlButton";
 import { BackButton } from "@/components/shared/BackButton";
+import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
+import { isHtmlContent } from "@/lib/sanitizeHtml";
+import { convertPlainTextToHtml } from "@/lib/textToHtml";
 
 export async function generateMetadata({
   params,
@@ -121,9 +124,27 @@ export default async function ExiconEntryPage({
           </CardHeader>
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold mb-2">Description</h3>
-            <p className="text-gray-700 dark:text-gray-300 mb-6">
-              {exiconEntry.description}
-            </p>
+            <div className="mb-6">
+              <RichTextDisplay
+                htmlContent={
+                  isHtmlContent(exiconEntry.description)
+                    ? exiconEntry.description
+                    : convertPlainTextToHtml(
+                        exiconEntry.description,
+                        exiconEntry.references
+                      )
+                }
+                mentionedEntries={
+                  exiconEntry.references?.reduce(
+                    (acc, ref) => {
+                      acc[ref.id] = ref;
+                      return acc;
+                    },
+                    {} as Record<string, typeof exiconEntry.references[0]>
+                  )
+                }
+              />
+            </div>
 
             <div className="space-y-3 mb-6">
               {embedUrl ? (

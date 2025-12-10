@@ -23,7 +23,8 @@ import {
   searchEntriesByName,
   getEntryById,
 } from "@/app/submit/actions";
-import { MentionTextArea } from "@/components/shared/MentionTextArea";
+import { TiptapEditor } from "@/components/shared/TiptapEditor";
+import { sanitizeEditorHtml } from "@/lib/sanitizeHtml";
 
 interface SuggestionEditFormProps {
   entryToSuggestEditFor: AnyEntry;
@@ -181,7 +182,7 @@ export function SuggestionEditForm({
             : undefined,
         description:
           suggestedDescription !== entryToSuggestEditFor.description
-            ? suggestedDescription
+            ? sanitizeEditorHtml(suggestedDescription)
             : undefined,
         aliases: suggestedAliases
           .split(",")
@@ -317,18 +318,17 @@ export function SuggestionEditForm({
                   Suggested Description
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Type{" "}
+                  Format your description with rich text (bold, lists, tables, etc.). Type{" "}
                   <span className="font-mono text-destructive font-semibold">
                     @
                   </span>{" "}
-                  to mention and link to other entries in the description.
+                  to mention and link to other entries.
                 </p>
-                <MentionTextArea
+                <TiptapEditor
                   value={suggestedDescription}
                   onChange={setSuggestedDescription}
                   onMentionsChange={setRawMentions}
                   searchEntries={searchEntriesByName}
-                  rows={8}
                   placeholder="Suggest a description with @mentions..."
                 />
               </div>

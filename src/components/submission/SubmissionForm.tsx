@@ -27,7 +27,8 @@ import type {
   NewUserSubmission,
 } from "@/lib/types";
 
-import { MentionTextArea } from "@/components/shared/MentionTextArea";
+import { TiptapEditor } from "@/components/shared/TiptapEditor";
+import { sanitizeEditorHtml } from "@/lib/sanitizeHtml";
 
 export function SubmissionFormContent() {
   const { toast } = useToast();
@@ -99,7 +100,7 @@ export function SubmissionFormContent() {
 
     const newEntryData: NewEntrySuggestionData = {
       name,
-      description,
+      description: sanitizeEditorHtml(description),
       aliases: aliases
         .split(",")
         .map((a) => a.trim())
@@ -234,18 +235,17 @@ export function SubmissionFormContent() {
               Description <span className="text-destructive">*</span>
             </Label>
             <p className="text-sm text-muted-foreground">
-              Type{" "}
+              Format your description with rich text (bold, lists, tables, etc.). Type{" "}
               <span className="font-mono text-destructive font-semibold">
                 @
               </span>{" "}
-              to mention and link to other entries in the description.
+              to mention and link to other entries.
             </p>
-            <MentionTextArea
+            <TiptapEditor
               value={description}
               onChange={setDescription}
               searchEntries={searchEntriesByName}
               placeholder="Enter description and type @ to mention entries..."
-              rows={5}
               onMentionsChange={handleMentionsChange}
             />
           </div>

@@ -14,8 +14,9 @@ import type {
   ReferencedEntry,
   LexiconEntry,
 } from "@/lib/types";
-import { MentionTextArea } from "@/components/shared/MentionTextArea";
+import { TiptapEditor } from "@/components/shared/TiptapEditor";
 import { searchEntriesByName } from "@/app/submit/actions";
+import { sanitizeEditorHtml } from "@/lib/sanitizeHtml";
 
 interface EntryFormProps {
   entryToEdit?: AnyEntry;
@@ -104,7 +105,7 @@ export function EntryForm({
           entryToEdit?.id ||
           `${type}-${Date.now()}-${name.toLowerCase().replace(/\s+/g, "-")}`,
         name: name.trim(),
-        description: description.trim(),
+        description: sanitizeEditorHtml(description.trim()),
         aliases: aliases.filter((alias) => alias.name.trim() !== ""),
         references: references,
         mentionedEntries: references.map((ref) => ref.id),
@@ -198,18 +199,17 @@ export function EntryForm({
               Description <span className="text-destructive">*</span>
             </Label>
             <p className="text-sm text-muted-foreground">
-              Type{" "}
+              Format your description with rich text (bold, lists, tables, etc.). Type{" "}
               <span className="font-mono text-destructive font-semibold">
                 @
               </span>{" "}
-              to mention and link to other entries in the description.
+              to mention and link to other entries.
             </p>
-            <MentionTextArea
+            <TiptapEditor
               value={description}
               onChange={setDescription}
               onMentionsChange={handleMentionsChange}
               placeholder="Enter description here. Use @ to mention other entries."
-              rows={5}
               searchEntries={searchEntriesByName}
             />
           </div>

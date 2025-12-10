@@ -12,6 +12,9 @@ import { getEntryByIdFromDatabase } from "@/lib/api";
 import { SuggestEditsButton } from "@/components/shared/SuggestEditsButton";
 import { CopyEntryUrlButton } from "@/components/shared/CopyEntryUrlButton";
 import { BackButton } from "@/components/shared/BackButton";
+import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
+import { isHtmlContent } from "@/lib/sanitizeHtml";
+import { convertPlainTextToHtml } from "@/lib/textToHtml";
 
 export async function generateMetadata({
   params,
@@ -111,9 +114,27 @@ export default async function LexiconEntryPage({
           </CardHeader>
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold mb-2">Description</h3>
-            <p className="text-gray-700 dark:text-gray-300 mb-6">
-              {lexiconEntry.description}
-            </p>
+            <div className="mb-6">
+              <RichTextDisplay
+                htmlContent={
+                  isHtmlContent(lexiconEntry.description)
+                    ? lexiconEntry.description
+                    : convertPlainTextToHtml(
+                        lexiconEntry.description,
+                        lexiconEntry.references
+                      )
+                }
+                mentionedEntries={
+                  lexiconEntry.references?.reduce(
+                    (acc, ref) => {
+                      acc[ref.id] = ref;
+                      return acc;
+                    },
+                    {} as Record<string, typeof lexiconEntry.references[0]>
+                  )
+                }
+              />
+            </div>
 
             <div className="flex justify-end gap-2">
               <CopyEntryUrlButton entry={lexiconEntry} />
