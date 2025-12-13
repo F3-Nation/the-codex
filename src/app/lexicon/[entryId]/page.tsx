@@ -42,7 +42,7 @@ export async function generateMetadata({
   const description =
     lexiconEntry.description ||
     `Learn about ${lexiconEntry.name} in the F3 Lexicon.`;
-  const url = `https://f3nation.com/lexicon/${entryId}`;
+  const url = `https://codex.f3nation.com/lexicon/${entryId}`;
 
   return {
     title,
@@ -120,9 +120,9 @@ export default async function LexiconEntryPage({
                   isHtmlContent(lexiconEntry.description)
                     ? lexiconEntry.description
                     : convertPlainTextToHtml(
-                        lexiconEntry.description,
-                        lexiconEntry.references
-                      )
+                      lexiconEntry.description,
+                      lexiconEntry.references
+                    )
                 }
                 mentionedEntries={
                   lexiconEntry.references?.reduce(
