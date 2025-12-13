@@ -134,6 +134,10 @@ export default function AdminPanel() {
   const [isLoadingOriginalEntry, setIsLoadingOriginalEntry] = useState(false);
   const [isSubmissionDetailOpen, setIsSubmissionDetailOpen] = useState(false);
 
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [submissionToReject, setSubmissionToReject] = useState<number | null>(null);
+
   const [lexiconEntriesForDisplay, setLexiconEntriesForDisplay] = useState<
     AnyEntry[]
   >([]);
@@ -540,26 +544,48 @@ export default function AdminPanel() {
     }
   };
 
-  const handleRejectSubmission = async (submissionId: number) => {
-    const submission = userSubmissions.find((s) => s.id === submissionId);
+  const handleRejectSubmission = (submissionId: number) => {
+    setSubmissionToReject(submissionId);
+    setRejectionReason("");
+    setIsRejectDialogOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!submissionToReject) return;
+
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Rejection Reason Required",
+        description: "Please provide a reason for rejecting this submission.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const submission = userSubmissions.find((s) => s.id === submissionToReject);
     if (submission) {
       try {
         await updateSubmissionStatusInDatabase(
-          submissionId,
+          submissionToReject,
           "rejected",
           submission,
+          rejectionReason.trim(),
         );
         toast({
           title: "Submission Rejected",
-          description: `Submission ID "${submissionId}" has been rejected.`,
+          description: `Submission ID "${submissionToReject}" has been rejected.`,
         });
         await refetchAllData();
-        if (viewingSubmission?.id === submissionId)
+        if (viewingSubmission?.id === submissionToReject) {
           setIsSubmissionDetailOpen(false);
+        }
+        setIsRejectDialogOpen(false);
+        setSubmissionToReject(null);
+        setRejectionReason("");
       } catch (error) {
         toast({
           title: "Reject Failed",
-          description: `Could not reject submission ID "${submissionId}".`,
+          description: `Could not reject submission ID "${submissionToReject}".`,
           variant: "destructive",
         });
       }
@@ -1733,6 +1759,57 @@ export default function AdminPanel() {
                 </DialogClose>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Reject Submission</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this submission. This will be
+              sent to the submitter via email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="rejection-reason">
+                Reason for Rejection <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Please explain why this submission is being rejected. This helps the submitter understand and potentially improve future submissions."
+                rows={5}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Be constructive and specific. The submitter will receive this
+                feedback via email.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsRejectDialogOpen(false);
+                setSubmissionToReject(null);
+                setRejectionReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={!rejectionReason.trim()}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Confirm Rejection
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

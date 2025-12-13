@@ -37,6 +37,7 @@ if (process.env.SENDGRID_API_KEY) {
 async function sendStatusUpdateNotification(
   submission: UserSubmissionBase<any>,
   status: "approved" | "rejected",
+  rejectionReason?: string,
 ) {
   if (!process.env.SENDGRID_API_KEY) {
     return;
@@ -72,7 +73,22 @@ async function sendStatusUpdateNotification(
           <p>Hi ${submission.submitterName},</p>
           <p>Thank you for your ${isEdit ? "edit suggestion" : "entry suggestion"} for "<strong>${entryName}</strong>".</p>
           <p>After careful review, we've decided not to implement this suggestion at this time.</p>
+          ${
+            rejectionReason
+              ? `
+          <div style="background-color: #f3f4f6; border-left: 4px solid #ef4444; padding: 12px 16px; margin: 16px 0;">
+            <p style="margin: 0; font-weight: bold; color: #1f2937;">Feedback from our team:</p>
+            <p style="margin: 8px 0 0 0; color: #374151;">${rejectionReason.replace(/\n/g, "<br>")}</p>
+          </div>
+          `
+              : ""
+          }
           <p>We appreciate your contribution and encourage you to keep sharing ideas with the F3 community.</p>
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 14px; color: #6b7280;">
+            <strong>Have questions or want to discuss this further?</strong><br>
+            Feel free to reach out to us at <a href="mailto:${process.env.FROM_EMAIL || "support.codex@f3nation.com"}" style="color: #3b82f6;">${process.env.FROM_EMAIL || "support.codex@f3nation.com"}</a>
+          </p>
         `,
     };
 
@@ -91,10 +107,9 @@ async function sendStatusUpdateNotification(
         <p><strong>Submitter:</strong> ${submission.submitterName} (${submission.submitterEmail})</p>
         <p><strong>Submission ID:</strong> ${submission.id}</p>
         <br>
-        ${
-          status === "approved"
-            ? '<p style="color: #22c55e; font-weight: bold;">✅ This entry is now live in the Codex!</p>'
-            : '<p style="color: #ef4444;">This submission has been declined.</p>'
+        ${status === "approved"
+          ? '<p style="color: #22c55e; font-weight: bold;">✅ This entry is now live in the Codex!</p>'
+          : '<p style="color: #ef4444;">This submission has been declined.</p>'
         }
         <hr>
         <p style="color: #666; font-size: 12px;">
@@ -194,18 +209,13 @@ export async function updateSubmissionStatusInDatabase(
   id: number,
   status: "pending" | "approved" | "rejected",
   submission?: UserSubmissionBase<any>,
+  rejectionReason?: string,
 ): Promise<void> {
-  await apiUpdateSubmissionStatusInDatabase(id, status);
+  await apiUpdateSubmissionStatusInDatabase(id, status, rejectionReason);
 
   // Send email notification if submission data is provided and status is approved/rejected
   if (submission && (status === "approved" || status === "rejected")) {
-    console.log(`Attempting to send ${status} email for submission:`, {
-      submissionId: id,
-      submitterEmail: submission.submitterEmail,
-      submitterName: submission.submitterName,
-      submissionType: submission.submissionType,
-    });
-    await sendStatusUpdateNotification(submission, status);
+    await sendStatusUpdateNotification(submission, status, rejectionReason);
   } else {
   }
 }

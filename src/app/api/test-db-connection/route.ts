@@ -81,7 +81,6 @@ export async function GET(request: Request) {
       databaseInfo.tables.push(tableInfo);
     }
 
-    console.log("API Route: Database schema and data inspection successful!");
     return NextResponse.json(
       { success: true, data: databaseInfo },
       { status: 200 },
