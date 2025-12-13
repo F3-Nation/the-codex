@@ -80,6 +80,8 @@ import {
   verifyAdminEmail,
 } from "./actions";
 import { getOAuthConfig } from "@/lib/auth";
+import { TiptapEditor } from "@/components/shared/TiptapEditor";
+import { searchEntriesByName } from "@/app/submit/actions";
 
 interface UserInfo {
   sub: string;
@@ -1124,19 +1126,26 @@ export default function AdminPanel() {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="edit-description">Description</Label>
-                        <Textarea
-                          id="edit-description"
+                        <TiptapEditor
                           value={
                             (editedSubmissionData as NewEntrySuggestionData)
                               .description
                           }
-                          onChange={(e) =>
+                          onChange={(html) =>
                             setEditedSubmissionData({
                               ...editedSubmissionData,
-                              description: e.target.value,
+                              description: html,
                             } as NewEntrySuggestionData)
                           }
-                          rows={5}
+                          onMentionsChange={(mentions) => {
+                            // Update mentioned entries when mentions change
+                            setEditedSubmissionData({
+                              ...editedSubmissionData,
+                              mentionedEntries: mentions.map((m) => m.id),
+                            } as NewEntrySuggestionData);
+                          }}
+                          searchEntries={searchEntriesByName}
+                          placeholder="Edit description..."
                         />
                       </div>
                       <div className="space-y-2">
@@ -1243,12 +1252,15 @@ export default function AdminPanel() {
                             <TableCell className="font-medium">
                               Description
                             </TableCell>
-                            <TableCell className="whitespace-pre-wrap">
-                              {
-                                (
-                                  viewingSubmission.data as NewEntrySuggestionData
-                                ).description
-                              }
+                            <TableCell>
+                              <div
+                                className="prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{
+                                  __html: (
+                                    viewingSubmission.data as NewEntrySuggestionData
+                                  ).description,
+                                }}
+                              />
                             </TableCell>
                           </TableRow>
                           <TableRow>
@@ -1341,139 +1353,329 @@ export default function AdminPanel() {
               ) : (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">
-                    Comparison of Changes
+                    {isEditingSubmission
+                      ? "Edit Suggested Changes"
+                      : "Comparison of Changes"}
                   </h3>
                   {isLoadingOriginalEntry ? (
                     <div className="text-center py-8">
                       Loading original entry...
                     </div>
                   ) : originalEntryForEditView ? (
-                    <div className="overflow-x-auto border rounded-md">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Field</TableHead>
-                            <TableHead>Original</TableHead>
-                            <TableHead>Suggested Change</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(
-                            viewingSubmission.data as EditEntrySuggestionData
-                          ).changes.name && (
-                            <TableRow>
-                              <TableCell className="font-medium">Name</TableCell>
-                              <TableCell>
-                                {originalEntryForEditView.name}
-                              </TableCell>
-                              <TableCell>
-                                {
-                                  (
-                                    viewingSubmission.data as EditEntrySuggestionData
-                                  ).changes.name
+                    <>
+                      {isEditingSubmission && editedSubmissionData ? (
+                        <div className="space-y-4">
+                          {(editedSubmissionData as EditEntrySuggestionData)
+                            .changes.name !== undefined && (
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-change-name">Name</Label>
+                              <Input
+                                id="edit-change-name"
+                                value={
+                                  (editedSubmissionData as EditEntrySuggestionData)
+                                    .changes.name || ""
                                 }
-                              </TableCell>
-                            </TableRow>
+                                onChange={(e) =>
+                                  setEditedSubmissionData({
+                                    ...editedSubmissionData,
+                                    changes: {
+                                      ...(
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes,
+                                      name: e.target.value,
+                                    },
+                                  } as EditEntrySuggestionData)
+                                }
+                              />
+                            </div>
                           )}
-                          {(
-                            viewingSubmission.data as EditEntrySuggestionData
-                          ).changes.description && (
-                            <TableRow>
-                              <TableCell className="font-medium">
+                          {(editedSubmissionData as EditEntrySuggestionData)
+                            .changes.description !== undefined && (
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-change-description">
                                 Description
-                              </TableCell>
-                              <TableCell>
-                                {originalEntryForEditView.description}
-                              </TableCell>
-                              <TableCell>
-                                {
-                                  (
-                                    viewingSubmission.data as EditEntrySuggestionData
-                                  ).changes.description
+                              </Label>
+                              <TiptapEditor
+                                value={
+                                  (editedSubmissionData as EditEntrySuggestionData)
+                                    .changes.description || ""
                                 }
-                              </TableCell>
-                            </TableRow>
+                                onChange={(html) =>
+                                  setEditedSubmissionData({
+                                    ...editedSubmissionData,
+                                    changes: {
+                                      ...(
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes,
+                                      description: html,
+                                    },
+                                  } as EditEntrySuggestionData)
+                                }
+                                onMentionsChange={(mentions) => {
+                                  setEditedSubmissionData({
+                                    ...editedSubmissionData,
+                                    changes: {
+                                      ...(
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes,
+                                      mentionedEntries: mentions.map((m) => m.id),
+                                    },
+                                  } as EditEntrySuggestionData);
+                                }}
+                                searchEntries={searchEntriesByName}
+                                placeholder="Edit description..."
+                              />
+                            </div>
                           )}
-                          {(
-                            viewingSubmission.data as EditEntrySuggestionData
-                          ).changes.aliases && (
-                            <TableRow>
-                              <TableCell className="font-medium">
-                                Aliases
-                              </TableCell>
-                              <TableCell>
-                                {formatAliases(originalEntryForEditView.aliases)}
-                              </TableCell>
-                              <TableCell>
-                                {formatAliases(
-                                  (
-                                    viewingSubmission.data as EditEntrySuggestionData
-                                  ).changes.aliases,
-                                )}
-                              </TableCell>
-                            </TableRow>
+                          {(editedSubmissionData as EditEntrySuggestionData)
+                            .changes.aliases !== undefined && (
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-change-aliases">
+                                Aliases (comma-separated)
+                              </Label>
+                              <Input
+                                id="edit-change-aliases"
+                                value={(
+                                  (editedSubmissionData as EditEntrySuggestionData)
+                                    .changes.aliases || []
+                                ).join(", ")}
+                                onChange={(e) =>
+                                  setEditedSubmissionData({
+                                    ...editedSubmissionData,
+                                    changes: {
+                                      ...(
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes,
+                                      aliases: e.target.value
+                                        .split(",")
+                                        .map((a) => a.trim())
+                                        .filter(Boolean),
+                                    },
+                                  } as EditEntrySuggestionData)
+                                }
+                              />
+                            </div>
                           )}
-                          {originalEntryForEditView.type === "exicon" && (
-                            <>
+                          {originalEntryForEditView.type === "exicon" &&
+                            (editedSubmissionData as EditEntrySuggestionData)
+                              .changes.tags !== undefined && (
+                              <div className="space-y-2">
+                                <Label>Tags</Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
+                                  {tags.map((tag) => (
+                                    <div
+                                      key={tag.id}
+                                      className="flex items-center space-x-2"
+                                    >
+                                      <Checkbox
+                                        id={`edit-change-tag-${tag.id}`}
+                                        checked={(
+                                          (
+                                            editedSubmissionData as EditEntrySuggestionData
+                                          ).changes.tags || []
+                                        ).includes(tag.name)}
+                                        onCheckedChange={(checked) => {
+                                          const currentTags =
+                                            (
+                                              editedSubmissionData as EditEntrySuggestionData
+                                            ).changes.tags || [];
+                                          const newTags = checked
+                                            ? [...currentTags, tag.name]
+                                            : currentTags.filter(
+                                                (t) => t !== tag.name,
+                                              );
+                                          setEditedSubmissionData({
+                                            ...editedSubmissionData,
+                                            changes: {
+                                              ...(
+                                                editedSubmissionData as EditEntrySuggestionData
+                                              ).changes,
+                                              tags: newTags,
+                                            },
+                                          } as EditEntrySuggestionData);
+                                        }}
+                                      />
+                                      <Label
+                                        htmlFor={`edit-change-tag-${tag.id}`}
+                                        className="font-normal"
+                                      >
+                                        {tag.name}
+                                      </Label>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          {originalEntryForEditView.type === "exicon" &&
+                            (editedSubmissionData as EditEntrySuggestionData)
+                              .changes.videoLink !== undefined && (
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-change-videoLink">
+                                  Video Link
+                                </Label>
+                                <Input
+                                  id="edit-change-videoLink"
+                                  type="url"
+                                  value={
+                                    (editedSubmissionData as EditEntrySuggestionData)
+                                      .changes.videoLink || ""
+                                  }
+                                  onChange={(e) =>
+                                    setEditedSubmissionData({
+                                      ...editedSubmissionData,
+                                      changes: {
+                                        ...(
+                                          editedSubmissionData as EditEntrySuggestionData
+                                        ).changes,
+                                        videoLink: e.target.value,
+                                      },
+                                    } as EditEntrySuggestionData)
+                                  }
+                                  placeholder="https://youtube.com/watch?v=..."
+                                />
+                              </div>
+                            )}
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto border rounded-md">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Field</TableHead>
+                                <TableHead>Original</TableHead>
+                                <TableHead>Suggested Change</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
                               {(
                                 viewingSubmission.data as EditEntrySuggestionData
-                              ).changes.tags && (
+                              ).changes.name && (
                                 <TableRow>
                                   <TableCell className="font-medium">
-                                    Tags
+                                    Name
                                   </TableCell>
                                   <TableCell>
-                                    {(
-                                      (originalEntryForEditView as ExiconEntry)
-                                        .tags || []
-                                    ).length > 0
-                                      ? (
-                                          (
-                                            originalEntryForEditView as ExiconEntry
-                                          ).tags || []
-                                        )
-                                          .map((tag) => tag.name)
-                                          .join(", ")
-                                      : "None"}
+                                    {originalEntryForEditView.name}
                                   </TableCell>
                                   <TableCell>
-                                    {(
+                                    {
                                       (
                                         viewingSubmission.data as EditEntrySuggestionData
-                                      ).changes.tags || []
-                                    ).length > 0
-                                      ? (
+                                      ).changes.name
+                                    }
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {(
+                                viewingSubmission.data as EditEntrySuggestionData
+                              ).changes.description && (
+                                <TableRow>
+                                  <TableCell className="font-medium">
+                                    Description
+                                  </TableCell>
+                                  <TableCell>
+                                    <div
+                                      className="prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{
+                                        __html: originalEntryForEditView.description,
+                                      }}
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <div
+                                      className="prose prose-sm max-w-none"
+                                      dangerouslySetInnerHTML={{
+                                        __html:
+                                          (
+                                            viewingSubmission.data as EditEntrySuggestionData
+                                          ).changes.description || "",
+                                      }}
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {(
+                                viewingSubmission.data as EditEntrySuggestionData
+                              ).changes.aliases && (
+                                <TableRow>
+                                  <TableCell className="font-medium">
+                                    Aliases
+                                  </TableCell>
+                                  <TableCell>
+                                    {formatAliases(originalEntryForEditView.aliases)}
+                                  </TableCell>
+                                  <TableCell>
+                                    {formatAliases(
+                                      (
+                                        viewingSubmission.data as EditEntrySuggestionData
+                                      ).changes.aliases,
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {originalEntryForEditView.type === "exicon" && (
+                                <>
+                                  {(
+                                    viewingSubmission.data as EditEntrySuggestionData
+                                  ).changes.tags && (
+                                    <TableRow>
+                                      <TableCell className="font-medium">
+                                        Tags
+                                      </TableCell>
+                                      <TableCell>
+                                        {(
+                                          (originalEntryForEditView as ExiconEntry)
+                                            .tags || []
+                                        ).length > 0
+                                          ? (
+                                              (
+                                                originalEntryForEditView as ExiconEntry
+                                              ).tags || []
+                                            )
+                                              .map((tag) => tag.name)
+                                              .join(", ")
+                                          : "None"}
+                                      </TableCell>
+                                      <TableCell>
+                                        {(
                                           (
                                             viewingSubmission.data as EditEntrySuggestionData
                                           ).changes.tags || []
-                                        ).join(", ")
-                                      : "None"}
-                                  </TableCell>
-                                </TableRow>
+                                        ).length > 0
+                                          ? (
+                                              (
+                                                viewingSubmission.data as EditEntrySuggestionData
+                                              ).changes.tags || []
+                                            ).join(", ")
+                                          : "None"}
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                  {(
+                                    viewingSubmission.data as EditEntrySuggestionData
+                                  ).changes.videoLink && (
+                                    <TableRow>
+                                      <TableCell className="font-medium">
+                                        Video Link
+                                      </TableCell>
+                                      <TableCell>
+                                        {(originalEntryForEditView as ExiconEntry)
+                                          .videoLink || "None"}
+                                      </TableCell>
+                                      <TableCell>
+                                        {(
+                                          viewingSubmission.data as EditEntrySuggestionData
+                                        ).changes.videoLink || "None"}
+                                      </TableCell>
+                                    </TableRow>
+                                  )}
+                                </>
                               )}
-                              {(
-                                viewingSubmission.data as EditEntrySuggestionData
-                              ).changes.videoLink && (
-                                <TableRow>
-                                  <TableCell className="font-medium">
-                                    Video Link
-                                  </TableCell>
-                                  <TableCell>
-                                    {(originalEntryForEditView as ExiconEntry)
-                                      .videoLink || "None"}
-                                  </TableCell>
-                                  <TableCell>
-                                    {(
-                                      viewingSubmission.data as EditEntrySuggestionData
-                                    ).changes.videoLink || "None"}
-                                  </TableCell>
-                                </TableRow>
-                              )}
-                            </>
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <p className="text-center text-muted-foreground">
                       Original entry could not be loaded.

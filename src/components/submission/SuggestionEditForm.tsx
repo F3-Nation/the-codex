@@ -171,6 +171,50 @@ export function SuggestionEditForm({
       return;
     }
 
+    // Helper to compare arrays
+    const arraysEqual = (a: string[], b: string[]): boolean => {
+      if (a.length !== b.length) return false;
+      const sortedA = [...a].sort();
+      const sortedB = [...b].sort();
+      return sortedA.every((val, idx) => val === sortedB[idx]);
+    };
+
+    // Prepare suggested aliases
+    const suggestedAliasesArray = suggestedAliases
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    // Prepare original aliases
+    const originalAliases = Array.isArray(entryToSuggestEditFor.aliases)
+      ? entryToSuggestEditFor.aliases
+          .map((alias) => {
+            if (typeof alias === "string") return alias;
+            if (
+              alias &&
+              typeof alias === "object" &&
+              "name" in alias &&
+              typeof alias.name === "string"
+            )
+              return alias.name;
+            return "";
+          })
+          .filter(Boolean)
+      : [];
+
+    // Prepare suggested tags
+    const suggestedTagNames = isExicon
+      ? (suggestedTagIds
+          .map((id) => availableTags.find((t) => t.id === id)?.name)
+          .filter(Boolean) as string[])
+      : [];
+
+    // Prepare original tags
+    const originalTagNames =
+      isExicon && exiconEntry
+        ? exiconEntry.tags.map((t) => t.name)
+        : [];
+
     const editDataPayload: EditEntrySuggestionData = {
       entryId: entryToSuggestEditFor.id,
       entryName: entryToSuggestEditFor.name,
@@ -184,15 +228,13 @@ export function SuggestionEditForm({
           suggestedDescription !== entryToSuggestEditFor.description
             ? sanitizeEditorHtml(suggestedDescription)
             : undefined,
-        aliases: suggestedAliases
-          .split(",")
-          .map((a) => a.trim())
-          .filter(Boolean),
-        tags: isExicon
-          ? (suggestedTagIds
-              .map((id) => availableTags.find((t) => t.id === id)?.name)
-              .filter(Boolean) as string[])
+        aliases: !arraysEqual(suggestedAliasesArray, originalAliases)
+          ? suggestedAliasesArray
           : undefined,
+        tags:
+          isExicon && !arraysEqual(suggestedTagNames, originalTagNames)
+            ? suggestedTagNames
+            : undefined,
         videoLink:
           isExicon && suggestedVideoLink !== exiconEntry?.videoLink
             ? suggestedVideoLink
