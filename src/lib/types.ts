@@ -79,7 +79,6 @@ export interface EditEntrySuggestionData {
     videoLink?: string;
     mentionedEntries?: string[];
     entryType?: "exicon" | "lexicon";
-    comments?: string;
   };
   comments?: string;
 }

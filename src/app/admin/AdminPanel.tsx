@@ -1479,10 +1479,12 @@ export default function AdminPanel() {
                     </p>
                   )}
                   <div className="space-y-2">
-                    <h4 className="text-lg font-semibold">Comments</h4>
+                    <h4 className="text-lg font-semibold">
+                      Reason for Changes / Comments
+                    </h4>
                     <p className="text-sm text-muted-foreground">
                       {(viewingSubmission.data as EditEntrySuggestionData)
-                        .changes.comments || "No comments provided."}
+                        .comments || "No comments provided."}
                     </p>
                   </div>
                 </div>
