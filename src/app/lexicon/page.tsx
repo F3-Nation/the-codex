@@ -27,7 +27,7 @@ export async function generateMetadata({
         const title = `${entry.name} - F3 Lexicon`;
         const description =
           entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
-        const url = `https://f3nation.com/lexicon?entryId=${entryId}`;
+        const url = `https://codex.f3nation.com/lexicon?entryId=${entryId}`;
 
         return {
           title,
@@ -72,19 +72,19 @@ function normalizeAliases(
 ): { id: string; name: string }[] {
   return Array.isArray(aliases)
     ? aliases
-        .map((alias, i) => {
-          if (typeof alias === "string") {
-            return { id: `alias-${entryId}-${i}`, name: alias };
-          }
-          if (alias && typeof alias.name === "string") {
-            return {
-              id: alias.id ?? `alias-${entryId}-${i}`,
-              name: alias.name,
-            };
-          }
-          return null;
-        })
-        .filter((a): a is { id: string; name: string } => a !== null)
+      .map((alias, i) => {
+        if (typeof alias === "string") {
+          return { id: `alias-${entryId}-${i}`, name: alias };
+        }
+        if (alias && typeof alias.name === "string") {
+          return {
+            id: alias.id ?? `alias-${entryId}-${i}`,
+            name: alias.name,
+          };
+        }
+        return null;
+      })
+      .filter((a): a is { id: string; name: string } => a !== null)
     : [];
 }
 
