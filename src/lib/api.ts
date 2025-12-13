@@ -609,6 +609,14 @@ export const updateEntryInDatabase = async (
     const videoLink =
       type === "exicon" ? (entry as ExiconEntry).videoLink || null : null;
 
+    console.log("🎥 Updating entry:", {
+      id,
+      name,
+      type,
+      videoLink,
+      rawVideoLink: (entry as ExiconEntry).videoLink,
+    });
+
     const aliasesToStore = Array.isArray(entry.aliases)
       ? entry.aliases.map((alias) =>
           typeof alias === "string" ? { name: alias } : alias,
@@ -636,6 +644,9 @@ export const updateEntryInDatabase = async (
     }
 
     if (type === "exicon") {
+      // Delete existing tags first to avoid duplicates
+      await client.query("DELETE FROM entry_tags WHERE entry_id = $1", [id]);
+
       const tags = (entry as ExiconEntry).tags;
       const tagNames = tags.map((t) => t.name);
 

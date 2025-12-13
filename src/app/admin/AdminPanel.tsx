@@ -758,8 +758,13 @@ export default function AdminPanel() {
                         <TableCell className="capitalize">
                           {entry.type}
                         </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {entry.description}
+                        <TableCell className="max-w-xs">
+                          <div
+                            className="prose prose-sm max-w-none line-clamp-2"
+                            dangerouslySetInnerHTML={{
+                              __html: entry.description
+                            }}
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
