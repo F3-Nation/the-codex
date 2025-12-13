@@ -1124,11 +1124,11 @@ export async function applyApprovedSubmissionToDatabase(
         );
         const tagIds = ensuredTags.map((t) => t.id).filter(Boolean);
         if (tagIds.length > 0) {
-          const entryTagValues = tagIds
-            .map((tagId) => `('${id}', '${tagId}')`)
-            .join(",");
+          // Use parameterized query with unnest to safely insert multiple rows
+          const placeholders = tagIds.map((_, i) => `($1, $${i + 2})`).join(",");
           await client.query(
-            `INSERT INTO entry_tags (entry_id, tag_id) VALUES ${entryTagValues} ON CONFLICT (entry_id, tag_id) DO NOTHING`,
+            `INSERT INTO entry_tags (entry_id, tag_id) VALUES ${placeholders} ON CONFLICT (entry_id, tag_id) DO NOTHING`,
+            [id, ...tagIds],
           );
         }
       }
@@ -1256,15 +1256,15 @@ export const createEntryInDatabase = async (
 
     if (entryType === "exicon" && tags && tags.length > 0) {
       const ensuredTagsWithIds = await ensureTagsExist(client, tags);
-      const entryTagValues = ensuredTagsWithIds
-        .map((tag) => `('${entryId}', '${tag.id}')`)
-        .join(",");
+      const tagIds = ensuredTagsWithIds.map((tag) => tag.id);
 
-      if (entryTagValues) {
-        await client.query(`
-          INSERT INTO entry_tags (entry_id, tag_id)
-          VALUES ${entryTagValues}
-        `);
+      if (tagIds.length > 0) {
+        // Use parameterized query to safely insert multiple rows
+        const placeholders = tagIds.map((_, i) => `($1, $${i + 2})`).join(",");
+        await client.query(
+          `INSERT INTO entry_tags (entry_id, tag_id) VALUES ${placeholders}`,
+          [entryId, ...tagIds],
+        );
       }
     }
 
