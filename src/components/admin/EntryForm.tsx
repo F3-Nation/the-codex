@@ -126,14 +126,6 @@ export function EntryForm({
               type: "lexicon",
             } as LexiconEntry);
 
-      console.log("📝 EntryForm submitting:", {
-        type,
-        videoLink: videoLink,
-        trimmed: videoLink.trim(),
-        final: videoLink.trim() || undefined,
-        entryData: entryData,
-      });
-
       await onFormSubmit(entryData);
     } catch (error) {
       setLocalError(

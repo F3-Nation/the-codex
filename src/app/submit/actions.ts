@@ -62,9 +62,7 @@ async function sendSubmissionNotification(
       `,
     };
 
-    console.log(`Sending confirmation email to: ${submitterEmail}`);
     await sgMail.send(submitterMsg);
-    console.log(`Confirmation email sent successfully to: ${submitterEmail}`);
 
     // Send admin notification to the same email address as FROM_EMAIL (support@f3nation.com)
     const adminMsg = {
@@ -82,13 +80,9 @@ async function sendSubmissionNotification(
       `,
     };
 
-    console.log(
-      `Sending admin notification email to: ${process.env.FROM_EMAIL}`,
-    );
+
     await sgMail.send(adminMsg);
-    console.log(
-      `Admin notification email sent successfully to: ${process.env.FROM_EMAIL}`,
-    );
+
   } catch (error) {
     console.error("Error sending email notification:", error);
     console.error("Email error details:", {
@@ -220,21 +214,15 @@ export async function searchEntriesByName(
 export async function submitNewEntrySuggestion(
   submission: NewUserSubmission<NewEntrySuggestionData>,
 ): Promise<void> {
-  console.log("[SUBMISSION] Creating new entry submission in database...");
   await createSubmissionInDatabase(submission);
-  console.log("[SUBMISSION] Database entry created successfully");
 
   // Send email notification after successful submission
-  console.log("[SUBMISSION] Attempting to send email notifications...");
-  console.log("[SUBMISSION] Submitter email:", submission.submitterEmail);
-  console.log("[SUBMISSION] Submitter name:", submission.submitterName);
   await sendSubmissionNotification(
     "new",
     submission.data,
     submission.submitterEmail,
     submission.submitterName,
   );
-  console.log("[SUBMISSION] Email notifications completed");
 }
 
 /**
@@ -245,21 +233,16 @@ export async function submitNewEntrySuggestion(
 export async function submitEditEntrySuggestion(
   submission: NewUserSubmission<EditEntrySuggestionData>,
 ): Promise<void> {
-  console.log("[SUBMISSION] Creating edit entry submission in database...");
   await createSubmissionInDatabase(submission);
-  console.log("[SUBMISSION] Database entry created successfully");
 
   // Send email notification after successful submission
-  console.log("[SUBMISSION] Attempting to send email notifications...");
-  console.log("[SUBMISSION] Submitter email:", submission.submitterEmail);
-  console.log("[SUBMISSION] Submitter name:", submission.submitterName);
+
   await sendSubmissionNotification(
     "edit",
     submission.data,
     submission.submitterEmail,
     submission.submitterName,
   );
-  console.log("[SUBMISSION] Email notifications completed");
 }
 
 /**

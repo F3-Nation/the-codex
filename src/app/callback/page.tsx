@@ -39,13 +39,6 @@ function CallbackContent() {
       const state = searchParams.get("state");
       const errorParam = searchParams.get("error");
 
-      // Debug logging
-      console.log("Callback debug:", {
-        code: code ? "present" : "missing",
-        state: state ? "present" : "missing",
-        errorParam,
-        url: window.location.href,
-      });
 
       if (errorParam) {
         setError(`OAuth error: ${errorParam}`);
@@ -67,10 +60,7 @@ function CallbackContent() {
       try {
         // Verify state parameter structure (handle cross-browser scenarios)
         const storedState = localStorage.getItem("oauth_state");
-        console.log("State verification:", {
-          receivedState: state,
-          storedState: storedState ? "present" : "missing (cross-browser)",
-        });
+
 
         // Decode and validate state parameter structure
         const decodeState = (state: string) => {

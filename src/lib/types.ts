@@ -96,6 +96,8 @@ export interface UserSubmissionBase<
   timestamp: string;
   createdAt?: string;
   updatedAt?: string;
+  rejectionReason?: string; // Admin's reason for rejecting the submission
+  adminNotes?: string; // Internal admin notes
 }
 
 export type UserSubmission = UserSubmissionBase<

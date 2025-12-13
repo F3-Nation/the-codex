@@ -609,14 +609,6 @@ export const updateEntryInDatabase = async (
     const videoLink =
       type === "exicon" ? (entry as ExiconEntry).videoLink || null : null;
 
-    console.log("🎥 Updating entry:", {
-      id,
-      name,
-      type,
-      videoLink,
-      rawVideoLink: (entry as ExiconEntry).videoLink,
-    });
-
     const aliasesToStore = Array.isArray(entry.aliases)
       ? entry.aliases.map((alias) =>
           typeof alias === "string" ? { name: alias } : alias,
@@ -937,7 +929,7 @@ export const fetchPendingSubmissionsFromDatabase = async (): Promise<
   const client = await getClient();
   try {
     const res = await client.query(
-      "SELECT id, submission_type, data, submitter_name, submitter_email, status, timestamp::text FROM user_submissions WHERE status = 'pending' ORDER BY timestamp ASC",
+      "SELECT id, submission_type, data, submitter_name, submitter_email, status, timestamp::text, rejection_reason, admin_notes FROM user_submissions WHERE status = 'pending' ORDER BY timestamp ASC",
     );
     return res.rows.map(
       (row: {
@@ -950,6 +942,8 @@ export const fetchPendingSubmissionsFromDatabase = async (): Promise<
         timestamp: any;
         description: any;
         name: any;
+        rejection_reason: any;
+        admin_notes: any;
       }) => ({
         id: Number(row.id),
         submissionType: row.submission_type,
@@ -960,6 +954,8 @@ export const fetchPendingSubmissionsFromDatabase = async (): Promise<
         timestamp: row.timestamp,
         description: row.description,
         name: row.name,
+        rejectionReason: row.rejection_reason,
+        adminNotes: row.admin_notes,
       }),
     );
   } catch (err) {
@@ -1023,13 +1019,22 @@ export async function createSubmissionInDatabase(
 export const updateSubmissionStatusInDatabase = async (
   id: number,
   status: "pending" | "approved" | "rejected",
+  rejectionReason?: string,
 ): Promise<void> => {
   const client = await getClient();
   try {
-    const res = await client.query(
-      "UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2",
-      [status, id],
-    );
+    // If status is rejected, update with rejection reason; otherwise just update status
+    const res =
+      status === "rejected" && rejectionReason
+        ? await client.query(
+            "UPDATE user_submissions SET status = $1, rejection_reason = $2, updated_at = NOW() WHERE id = $3",
+            [status, rejectionReason, id],
+          )
+        : await client.query(
+            "UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2",
+            [status, id],
+          );
+
     if (res.rowCount === 0) {
       throw new Error(`Submission with ID ${id} not found.`);
     }
