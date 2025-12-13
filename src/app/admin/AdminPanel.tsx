@@ -1358,116 +1358,117 @@ export default function AdminPanel() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          <TableRow>
-                            <TableCell className="font-medium">Name</TableCell>
-                            <TableCell>
-                              {originalEntryForEditView.name}
-                            </TableCell>
-                            <TableCell>
-                              {
-                                (
-                                  viewingSubmission.data as EditEntrySuggestionData
-                                ).changes.name
-                              }
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">
-                              Description
-                            </TableCell>
-                            <TableCell>
-                              {originalEntryForEditView.description}
-                            </TableCell>
-                            <TableCell>
-                              {
-                                (
-                                  viewingSubmission.data as EditEntrySuggestionData
-                                ).changes.description
-                              }
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">
-                              Aliases
-                            </TableCell>
-                            <TableCell>
-                              {formatAliases(originalEntryForEditView.aliases)}
-                            </TableCell>
-                            <TableCell>
-                              {formatAliases(
-                                (
-                                  viewingSubmission.data as EditEntrySuggestionData
-                                ).changes.aliases,
-                              )}
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell className="font-medium">Type</TableCell>
-                            <TableCell className="capitalize">
-                              {originalEntryForEditView.type}
-                            </TableCell>
-                            <TableCell className="capitalize">
-                              {
-                                (
-                                  viewingSubmission.data as EditEntrySuggestionData
-                                ).changes.entryType
-                              }
-                            </TableCell>
-                          </TableRow>
+                          {(
+                            viewingSubmission.data as EditEntrySuggestionData
+                          ).changes.name && (
+                            <TableRow>
+                              <TableCell className="font-medium">Name</TableCell>
+                              <TableCell>
+                                {originalEntryForEditView.name}
+                              </TableCell>
+                              <TableCell>
+                                {
+                                  (
+                                    viewingSubmission.data as EditEntrySuggestionData
+                                  ).changes.name
+                                }
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {(
+                            viewingSubmission.data as EditEntrySuggestionData
+                          ).changes.description && (
+                            <TableRow>
+                              <TableCell className="font-medium">
+                                Description
+                              </TableCell>
+                              <TableCell>
+                                {originalEntryForEditView.description}
+                              </TableCell>
+                              <TableCell>
+                                {
+                                  (
+                                    viewingSubmission.data as EditEntrySuggestionData
+                                  ).changes.description
+                                }
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {(
+                            viewingSubmission.data as EditEntrySuggestionData
+                          ).changes.aliases && (
+                            <TableRow>
+                              <TableCell className="font-medium">
+                                Aliases
+                              </TableCell>
+                              <TableCell>
+                                {formatAliases(originalEntryForEditView.aliases)}
+                              </TableCell>
+                              <TableCell>
+                                {formatAliases(
+                                  (
+                                    viewingSubmission.data as EditEntrySuggestionData
+                                  ).changes.aliases,
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          )}
                           {originalEntryForEditView.type === "exicon" && (
                             <>
-                              <TableRow>
-                                <TableCell className="font-medium">
-                                  Tags
-                                </TableCell>
-                                <TableCell>
-                                  {(
-                                    (originalEntryForEditView as ExiconEntry)
-                                      .tags || []
-                                  ).length > 0
-                                    ? (
-                                        (
-                                          originalEntryForEditView as ExiconEntry
-                                        ).tags || []
-                                      )
-                                        .map((tag) => tag.name)
-                                        .join(", ")
-                                    : "None"}
-                                </TableCell>
-                                <TableCell>
-                                  {(
-                                    (
-                                      viewingSubmission.data as EditEntrySuggestionData
-                                    ).changes.tags || []
-                                  ).length > 0
-                                    ? (
-                                        (
-                                          viewingSubmission.data as EditEntrySuggestionData
-                                        ).changes.tags || []
-                                      )
-                                        .map(
-                                          (tagId) =>
-                                            tags.find((t) => t.id === tagId)
-                                              ?.name || "Unknown",
+                              {(
+                                viewingSubmission.data as EditEntrySuggestionData
+                              ).changes.tags && (
+                                <TableRow>
+                                  <TableCell className="font-medium">
+                                    Tags
+                                  </TableCell>
+                                  <TableCell>
+                                    {(
+                                      (originalEntryForEditView as ExiconEntry)
+                                        .tags || []
+                                    ).length > 0
+                                      ? (
+                                          (
+                                            originalEntryForEditView as ExiconEntry
+                                          ).tags || []
                                         )
-                                        .join(", ")
-                                    : "None"}
-                                </TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell className="font-medium">
-                                  Video Link
-                                </TableCell>
-                                <TableCell>
-                                  {(originalEntryForEditView as ExiconEntry)
-                                    .videoLink || "None"}
-                                </TableCell>
-                                <TableCell>
-                                  {(
-                                    viewingSubmission.data as EditEntrySuggestionData
-                                  ).changes.videoLink || "None"}
-                                </TableCell>
-                              </TableRow>
+                                          .map((tag) => tag.name)
+                                          .join(", ")
+                                      : "None"}
+                                  </TableCell>
+                                  <TableCell>
+                                    {(
+                                      (
+                                        viewingSubmission.data as EditEntrySuggestionData
+                                      ).changes.tags || []
+                                    ).length > 0
+                                      ? (
+                                          (
+                                            viewingSubmission.data as EditEntrySuggestionData
+                                          ).changes.tags || []
+                                        ).join(", ")
+                                      : "None"}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                              {(
+                                viewingSubmission.data as EditEntrySuggestionData
+                              ).changes.videoLink && (
+                                <TableRow>
+                                  <TableCell className="font-medium">
+                                    Video Link
+                                  </TableCell>
+                                  <TableCell>
+                                    {(originalEntryForEditView as ExiconEntry)
+                                      .videoLink || "None"}
+                                  </TableCell>
+                                  <TableCell>
+                                    {(
+                                      viewingSubmission.data as EditEntrySuggestionData
+                                    ).changes.videoLink || "None"}
+                                  </TableCell>
+                                </TableRow>
+                              )}
                             </>
                           )}
                         </TableBody>
