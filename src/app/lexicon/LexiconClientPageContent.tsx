@@ -128,11 +128,18 @@ export const LexiconClientPageContent = ({
   };
 
   const filteredEntries = useMemo(() => {
+    // Helper function to normalize strings for fuzzy matching
+    const normalize = (str: string) =>
+      str.toLowerCase().replace(/[\s\-_.,!?;:'"]/g, "");
+
     return initialEntries
       .map((entry) => {
         const lowerSearchTerm = searchTerm.toLowerCase();
+        const normalizedSearchTerm = normalize(searchTerm);
         const lowerName = entry.name.toLowerCase();
+        const normalizedName = normalize(entry.name);
         const lowerDescription = entry.description?.toLowerCase() || "";
+        const normalizedDescription = normalize(entry.description || "");
 
         // Calculate search priority (lower is better)
         let searchPriority = Infinity;
@@ -174,9 +181,38 @@ export const LexiconClientPageContent = ({
             }
           }
 
-          // Check description match (lowest priority)
+          // Fuzzy match on name (normalized)
+          if (normalizedName.includes(normalizedSearchTerm)) {
+            searchPriority = Math.min(searchPriority, 7); // Fuzzy name match
+            matchesSearch = true;
+          }
+
+          // Fuzzy match on aliases (normalized)
+          if (entry.aliases) {
+            for (const alias of entry.aliases) {
+              const aliasName =
+                typeof alias === "string"
+                  ? alias
+                  : (alias as { name?: string }).name;
+              if (typeof aliasName === "string") {
+                const normalizedAlias = normalize(aliasName);
+                if (normalizedAlias.includes(normalizedSearchTerm)) {
+                  searchPriority = Math.min(searchPriority, 8); // Fuzzy alias match
+                  matchesSearch = true;
+                }
+              }
+            }
+          }
+
+          // Check description match
           if (lowerDescription.includes(lowerSearchTerm)) {
-            searchPriority = Math.min(searchPriority, 7); // Description contains search
+            searchPriority = Math.min(searchPriority, 9); // Description contains search
+            matchesSearch = true;
+          }
+
+          // Fuzzy match on description (normalized) - lowest priority
+          if (normalizedDescription.includes(normalizedSearchTerm)) {
+            searchPriority = Math.min(searchPriority, 10); // Fuzzy description match
             matchesSearch = true;
           }
         }

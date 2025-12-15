@@ -1322,6 +1322,9 @@ export async function searchEntriesByName(
 
     const trimmedQuery = query.trim().toLowerCase();
     const searchQuery = `%${trimmedQuery}%`;
+    // Normalize query for fuzzy matching: remove spaces, hyphens, and punctuation
+    const normalizedQuery = trimmedQuery.replace(/[\s\-_.,!?;:'"]/g, "");
+    const fuzzySearchQuery = `%${normalizedQuery}%`;
 
     const res = await client.query(
       `SELECT
@@ -1370,8 +1373,17 @@ export async function searchEntriesByName(
                 SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
                 WHERE LOWER(alias_elem) LIKE $1
               ) THEN 10
-              -- Description contains query gets lowest priority
-              ELSE 11
+              -- Fuzzy match on title (normalized)
+              WHEN REGEXP_REPLACE(LOWER(e.title), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4 THEN 11
+              -- Fuzzy match on alias (normalized)
+              WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE REGEXP_REPLACE(LOWER(alias_elem), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
+              ) THEN 12
+              -- Description contains query
+              WHEN LOWER(e.definition) LIKE $1 THEN 13
+              -- Fuzzy match on description (normalized) gets lowest priority
+              ELSE 14
             END as priority,
             -- Prefer shorter titles and titles ending with the search term
             LENGTH(e.title) as title_length,
@@ -1390,12 +1402,19 @@ export async function searchEntriesByName(
               WHERE LOWER(alias_elem) LIKE $1
             )
             OR LOWER(e.definition) LIKE $1
+            -- Fuzzy matching: normalized comparison (removes spaces, hyphens, punctuation)
+            OR REGEXP_REPLACE(LOWER(e.title), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
+            OR EXISTS (
+              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+              WHERE REGEXP_REPLACE(LOWER(alias_elem), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
+            )
+            OR REGEXP_REPLACE(LOWER(e.definition), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
          GROUP BY
             e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
          ORDER BY
             priority ASC, ending_boost ASC, title_length ASC, e.title ASC
          LIMIT 10`,
-      [searchQuery, trimmedQuery, `${trimmedQuery}%`],
+      [searchQuery, trimmedQuery, `${trimmedQuery}%`, fuzzySearchQuery],
     );
 
     return res.rows.map((row) =>
