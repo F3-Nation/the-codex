@@ -153,35 +153,87 @@ export const ExiconClientPageContent = ({
   };
 
   const filteredEntries = useMemo(() => {
-    return initialEntries.filter((entry) => {
-      const matchesSearch =
-        searchTerm === "" ||
-        entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (entry.aliases &&
-          entry.aliases.some((alias) =>
-            alias.name.toLowerCase().includes(searchTerm.toLowerCase()),
-          ));
+    return initialEntries
+      .map((entry) => {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        const lowerName = entry.name.toLowerCase();
+        const lowerDescription = entry.description?.toLowerCase() || "";
 
-      const matchesLetter =
-        filterLetter === "All" ||
-        entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
+        // Calculate search priority (lower is better)
+        let searchPriority = Infinity;
+        let matchesSearch = searchTerm === "";
 
-      const matchesTags = () => {
-        if (selectedTags.length === 0) {
-          return true;
+        if (searchTerm !== "") {
+          // Check name matches
+          if (lowerName === lowerSearchTerm) {
+            searchPriority = 1; // Exact name match
+            matchesSearch = true;
+          } else if (lowerName.startsWith(lowerSearchTerm)) {
+            searchPriority = 2; // Name starts with search
+            matchesSearch = true;
+          } else if (lowerName.includes(lowerSearchTerm)) {
+            searchPriority = 3; // Name contains search
+            matchesSearch = true;
+          }
+
+          // Check alias matches
+          if (entry.aliases) {
+            for (const alias of entry.aliases) {
+              const lowerAlias = alias.name.toLowerCase();
+              if (lowerAlias === lowerSearchTerm) {
+                searchPriority = Math.min(searchPriority, 4); // Exact alias match
+                matchesSearch = true;
+              } else if (lowerAlias.startsWith(lowerSearchTerm)) {
+                searchPriority = Math.min(searchPriority, 5); // Alias starts with search
+                matchesSearch = true;
+              } else if (lowerAlias.includes(lowerSearchTerm)) {
+                searchPriority = Math.min(searchPriority, 6); // Alias contains search
+                matchesSearch = true;
+              }
+            }
+          }
+
+          // Check description match (lowest priority)
+          if (lowerDescription.includes(lowerSearchTerm)) {
+            searchPriority = Math.min(searchPriority, 7); // Description contains search
+            matchesSearch = true;
+          }
         }
-        const entryTagIds = entry.tags?.map((tag) => tag.id) || [];
-        return filterLogic === "AND"
-          ? selectedTags.every((selectedTagId) =>
-              entryTagIds.includes(selectedTagId),
-            )
-          : selectedTags.some((selectedTagId) =>
-              entryTagIds.includes(selectedTagId),
-            );
-      };
 
-      return matchesSearch && matchesLetter && matchesTags();
-    });
+        const matchesLetter =
+          filterLetter === "All" ||
+          entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
+
+        const matchesTags = () => {
+          if (selectedTags.length === 0) {
+            return true;
+          }
+          const entryTagIds = entry.tags?.map((tag) => tag.id) || [];
+          return filterLogic === "AND"
+            ? selectedTags.every((selectedTagId) =>
+                entryTagIds.includes(selectedTagId),
+              )
+            : selectedTags.some((selectedTagId) =>
+                entryTagIds.includes(selectedTagId),
+              );
+        };
+
+        return {
+          entry,
+          searchPriority,
+          matches: matchesSearch && matchesLetter && matchesTags(),
+        };
+      })
+      .filter((item) => item.matches)
+      .sort((a, b) => {
+        // Sort by search priority first
+        if (a.searchPriority !== b.searchPriority) {
+          return a.searchPriority - b.searchPriority;
+        }
+        // Then alphabetically by name
+        return a.entry.name.localeCompare(b.entry.name);
+      })
+      .map((item) => item.entry);
   }, [initialEntries, searchTerm, filterLetter, selectedTags, filterLogic]);
 
   return (
@@ -326,7 +378,7 @@ export const ExiconClientPageContent = ({
           <SearchBar
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            placeholder="Search exercises by name or alias..."
+            placeholder="Search exercises by name, alias, or description..."
           />
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <Link href="/submit?type=exicon" passHref>

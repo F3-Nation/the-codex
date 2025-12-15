@@ -1334,15 +1334,15 @@ export async function searchEntriesByName(
             e.mentioned_entries,
             ARRAY_AGG(DISTINCT t.id || '::' || t.name) FILTER (WHERE t.id IS NOT NULL) AS tags_array,
             -- More aggressive priority scoring
-            CASE 
+            CASE
               -- Exact match on full title gets highest priority
               WHEN LOWER(e.title) = $2 THEN 1
               -- Title equals just the query (for single word titles)
               WHEN LOWER(e.title) = $2 THEN 1
               -- Exact match on individual words in title, prefer if it's the last word
-              WHEN $2 = ANY(string_to_array(LOWER(e.title), ' ')) THEN 
+              WHEN $2 = ANY(string_to_array(LOWER(e.title), ' ')) THEN
                 CASE WHEN LOWER(e.title) LIKE '%' || $2 THEN 2 ELSE 3 END
-              -- Title starts with query gets fourth priority  
+              -- Title starts with query gets fourth priority
               WHEN LOWER(e.title) LIKE $3 THEN 4
               -- Exact match in aliases gets fifth priority
               WHEN EXISTS (
@@ -1353,20 +1353,25 @@ export async function searchEntriesByName(
               WHEN EXISTS (
                 SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
                 WHERE $2 = ANY(string_to_array(LOWER(alias_elem), ' '))
-              ) THEN 
+              ) THEN
                 CASE WHEN EXISTS (
                   SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
                   WHERE LOWER(alias_elem) LIKE '%' || $2
                 ) THEN 6 ELSE 7 END
               -- Alias starts with query gets eighth priority
               WHEN EXISTS (
-                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem  
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
                 WHERE LOWER(alias_elem) LIKE $3
               ) THEN 8
               -- Title contains query gets ninth priority
               WHEN LOWER(e.title) LIKE $1 THEN 9
-              -- Alias contains query gets lowest priority
-              ELSE 10
+              -- Alias contains query gets tenth priority
+              WHEN EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE LOWER(alias_elem) LIKE $1
+              ) THEN 10
+              -- Description contains query gets lowest priority
+              ELSE 11
             END as priority,
             -- Prefer shorter titles and titles ending with the search term
             LENGTH(e.title) as title_length,
@@ -1379,11 +1384,12 @@ export async function searchEntriesByName(
          LEFT JOIN
             tags t ON et.tag_id = t.id
          WHERE
-            LOWER(e.title) LIKE $1 
+            LOWER(e.title) LIKE $1
             OR EXISTS (
               SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
               WHERE LOWER(alias_elem) LIKE $1
             )
+            OR LOWER(e.definition) LIKE $1
          GROUP BY
             e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
          ORDER BY

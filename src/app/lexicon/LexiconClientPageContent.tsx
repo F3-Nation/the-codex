@@ -128,30 +128,79 @@ export const LexiconClientPageContent = ({
   };
 
   const filteredEntries = useMemo(() => {
-    return initialEntries.filter((entry) => {
-      // Logic to check if the entry's name starts with the selected letter
-      const matchesLetter =
-        filterLetter === "All" ||
-        entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
+    return initialEntries
+      .map((entry) => {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        const lowerName = entry.name.toLowerCase();
+        const lowerDescription = entry.description?.toLowerCase() || "";
 
-      const matchesSearch =
-        entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (entry.description &&
-          entry.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (entry.aliases &&
-          entry.aliases.some((alias) => {
-            const aliasName =
-              typeof alias === "string"
-                ? alias
-                : (alias as { name?: string }).name;
-            return (
-              typeof aliasName === "string" &&
-              aliasName.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-          }));
+        // Calculate search priority (lower is better)
+        let searchPriority = Infinity;
+        let matchesSearch = searchTerm === "";
 
-      return matchesLetter && matchesSearch;
-    });
+        if (searchTerm !== "") {
+          // Check name matches
+          if (lowerName === lowerSearchTerm) {
+            searchPriority = 1; // Exact name match
+            matchesSearch = true;
+          } else if (lowerName.startsWith(lowerSearchTerm)) {
+            searchPriority = 2; // Name starts with search
+            matchesSearch = true;
+          } else if (lowerName.includes(lowerSearchTerm)) {
+            searchPriority = 3; // Name contains search
+            matchesSearch = true;
+          }
+
+          // Check alias matches
+          if (entry.aliases) {
+            for (const alias of entry.aliases) {
+              const aliasName =
+                typeof alias === "string"
+                  ? alias
+                  : (alias as { name?: string }).name;
+              if (typeof aliasName === "string") {
+                const lowerAlias = aliasName.toLowerCase();
+                if (lowerAlias === lowerSearchTerm) {
+                  searchPriority = Math.min(searchPriority, 4); // Exact alias match
+                  matchesSearch = true;
+                } else if (lowerAlias.startsWith(lowerSearchTerm)) {
+                  searchPriority = Math.min(searchPriority, 5); // Alias starts with search
+                  matchesSearch = true;
+                } else if (lowerAlias.includes(lowerSearchTerm)) {
+                  searchPriority = Math.min(searchPriority, 6); // Alias contains search
+                  matchesSearch = true;
+                }
+              }
+            }
+          }
+
+          // Check description match (lowest priority)
+          if (lowerDescription.includes(lowerSearchTerm)) {
+            searchPriority = Math.min(searchPriority, 7); // Description contains search
+            matchesSearch = true;
+          }
+        }
+
+        const matchesLetter =
+          filterLetter === "All" ||
+          entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
+
+        return {
+          entry,
+          searchPriority,
+          matches: matchesLetter && matchesSearch,
+        };
+      })
+      .filter((item) => item.matches)
+      .sort((a, b) => {
+        // Sort by search priority first
+        if (a.searchPriority !== b.searchPriority) {
+          return a.searchPriority - b.searchPriority;
+        }
+        // Then alphabetically by name
+        return a.entry.name.localeCompare(b.entry.name);
+      })
+      .map((item) => item.entry);
   }, [initialEntries, searchTerm, filterLetter]);
 
   return (
@@ -307,7 +356,7 @@ export const LexiconClientPageContent = ({
           <SearchBar
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
-            placeholder="Search Lexicon..."
+            placeholder="Search terms by name, alias, or description..."
           />
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <Link href="/submit?type=lexicon" passHref>
