@@ -68,23 +68,23 @@ const renderDescriptionWithMentions = (
   const mentionColors =
     colorVariant === "vibrant"
       ? [
-          "text-blue-600 hover:text-blue-700",
-          "text-purple-600 hover:text-purple-700",
-          "text-green-600 hover:text-green-700",
-          "text-orange-600 hover:text-orange-700",
-          "text-red-600 hover:text-red-700",
-          "text-teal-600 hover:text-teal-700",
-          "text-pink-600 hover:text-pink-700",
-          "text-indigo-600 hover:text-indigo-700",
-        ]
+        "text-blue-600 hover:text-blue-700",
+        "text-purple-600 hover:text-purple-700",
+        "text-green-600 hover:text-green-700",
+        "text-orange-600 hover:text-orange-700",
+        "text-red-600 hover:text-red-700",
+        "text-teal-600 hover:text-teal-700",
+        "text-pink-600 hover:text-pink-700",
+        "text-indigo-600 hover:text-indigo-700",
+      ]
       : [
-          "text-blue-500 hover:text-blue-600",
-          "text-purple-500 hover:text-purple-600",
-          "text-green-500 hover:text-green-600",
-          "text-orange-500 hover:text-orange-600",
-          "text-red-500 hover:text-red-600",
-          "text-teal-500 hover:text-teal-600",
-        ];
+        "text-blue-500 hover:text-blue-600",
+        "text-purple-500 hover:text-purple-600",
+        "text-green-500 hover:text-green-600",
+        "text-orange-500 hover:text-orange-600",
+        "text-red-500 hover:text-red-600",
+        "text-teal-500 hover:text-teal-600",
+      ];
 
   const foundMentions: {
     index: number;
@@ -195,13 +195,13 @@ const renderDescriptionWithMentions = (
             <p className="text-sm text-foreground leading-relaxed">
               {mention.entry.description
                 ? (() => {
-                    const cleanDesc = mention.entry.description
-                      .replace(/<[^>]*>/g, "")
-                      .replace(/@[A-Za-z0-9\s_.-]+/g, "[ref]");
-                    return cleanDesc.length > 120
-                      ? `${cleanDesc.substring(0, 120)}...`
-                      : cleanDesc;
-                  })()
+                  const cleanDesc = mention.entry.description
+                    .replace(/<[^>]*>/g, "")
+                    .replace(/@[A-Za-z0-9\s_.-]+/g, "[ref]");
+                  return cleanDesc.length > 120
+                    ? `${cleanDesc.substring(0, 120)}...`
+                    : cleanDesc;
+                })()
                 : "No description available."}
             </p>
 
@@ -326,7 +326,6 @@ export function EntryCard({ entry }: EntryCardProps) {
     if (result.success) {
       toast({
         title: `${entry.name} URL Copied!`,
-        description: `The link has been copied to your clipboard using ${result.method}.`,
       });
     } else {
       // If all automatic methods fail, show manual copy prompt
@@ -408,13 +407,13 @@ export function EntryCard({ entry }: EntryCardProps) {
 
       <CardFooter className="flex flex-wrap gap-2 pt-4 border-t mt-auto">
         {entry.type === "exicon" &&
-        Array.isArray((entry as ExiconEntry).tags) &&
-        (entry as ExiconEntry).tags.length > 0
+          Array.isArray((entry as ExiconEntry).tags) &&
+          (entry as ExiconEntry).tags.length > 0
           ? (entry as ExiconEntry).tags.map((tag) => (
-              <Badge key={tag.id} variant="secondary" className="font-normal">
-                {tag.name}
-              </Badge>
-            ))
+            <Badge key={tag.id} variant="secondary" className="font-normal">
+              {tag.name}
+            </Badge>
+          ))
           : null}
       </CardFooter>
     </Card>
@@ -503,7 +502,7 @@ export function EntryCard({ entry }: EntryCardProps) {
               <div className="pt-2">
                 <h4 className="text-md font-semibold mb-2">Tags:</h4>
                 {(entry as ExiconEntry).tags &&
-                (entry as ExiconEntry).tags.length > 0 ? (
+                  (entry as ExiconEntry).tags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {(entry as ExiconEntry).tags.map((tag) => (
                       <Badge

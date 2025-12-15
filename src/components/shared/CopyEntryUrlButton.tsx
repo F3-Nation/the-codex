@@ -24,7 +24,6 @@ export function CopyEntryUrlButton({ entry }: CopyEntryUrlButtonProps) {
     if (result.success) {
       toast({
         title: `${entry.name} URL Copied!`,
-        description: `The link has been copied to your clipboard using ${result.method}.`,
       });
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
