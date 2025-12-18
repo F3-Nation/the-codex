@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Geist } from "next/font/google";
 import { Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,7 +49,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen relative`}
         suppressHydrationWarning={true}
       >
-        <ConditionalLayout>{children}</ConditionalLayout>
+        <Suspense fallback={children}>
+          <ConditionalLayout>{children}</ConditionalLayout>
+        </Suspense>
         <Toaster />
 
         <Script id="iframe-height-reporter" strategy="afterInteractive">
