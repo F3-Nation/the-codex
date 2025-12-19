@@ -10,7 +10,7 @@ import type { LexiconEntry } from "@/lib/types";
 import type { Metadata } from "next";
 import { getEntryByIdFromDatabase } from "@/lib/api";
 import { SuggestEditsButton } from "@/components/shared/SuggestEditsButton";
-import { CopyEntryUrlButton } from "@/components/shared/CopyEntryUrlButton";
+import { CopyEntryButton } from "@/components/shared/CopyEntryButton";
 import { BackButton } from "@/components/shared/BackButton";
 import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
 import { isHtmlContent } from "@/lib/sanitizeHtml";
@@ -137,7 +137,12 @@ export default async function LexiconEntryPage({
             </div>
 
             <div className="flex justify-end gap-2">
-              <CopyEntryUrlButton entry={lexiconEntry} />
+              <CopyEntryButton
+                entry={lexiconEntry}
+                variant="outline"
+                size="sm"
+                showLabel={true}
+              />
               <SuggestEditsButton entry={lexiconEntry} />
             </div>
           </CardContent>

@@ -32,20 +32,15 @@ import { SuggestionEditForm } from "@/components/submission/SuggestionEditForm";
 import { useToast } from "@/hooks/use-toast";
 import { getYouTubeEmbedUrl } from "@/lib/utils";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   copyToClipboard,
   isInIframe as isInIframeUtil,
   showCopyPrompt,
 } from "@/lib/clipboard";
-import { generateEntryUrl, getEntryBaseUrl } from "@/lib/route-utils";
+import { getEntryBaseUrl } from "@/lib/route-utils";
 import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
 import { isHtmlContent } from "@/lib/sanitizeHtml";
 import { convertPlainTextToHtml } from "@/lib/textToHtml";
+import { CopyEntryButton } from "@/components/shared/CopyEntryButton";
 
 interface EntryCardProps {
   entry: AnyEntry & {
@@ -317,33 +312,6 @@ export function EntryCard({ entry }: EntryCardProps) {
     }
   };
 
-  const handleCopyEntryContent = async (event: React.MouseEvent) => {
-    event.stopPropagation();
-    const url = generateEntryUrl(entry.id, entry.type as "exicon" | "lexicon");
-
-    const result = await copyToClipboard(url);
-
-    if (result.success) {
-      toast({
-        title: `${entry.name} URL Copied!`,
-      });
-    } else {
-      // If all automatic methods fail, show manual copy prompt
-      if (isInIframeUtil()) {
-        showCopyPrompt(url);
-        toast({
-          title: "Manual Copy Required",
-          description: "Please copy the link from the popup dialog.",
-        });
-      } else {
-        toast({
-          title: "Failed to Copy URL",
-          description: result.error || "Could not copy the entry URL.",
-          variant: "destructive",
-        });
-      }
-    }
-  };
 
   const videoLink =
     entry.type === "exicon" ? (entry as ExiconEntry).videoLink : undefined;
@@ -368,24 +336,12 @@ export function EntryCard({ entry }: EntryCardProps) {
               </p>
             ) : null}
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyEntryContent}
-                  className="ml-auto flex-shrink-0 h-8 w-8 text-muted-foreground hover:text-accent"
-                  aria-label="Copy entry content"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy Entry URL</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <CopyEntryButton
+            entry={entry}
+            variant="ghost"
+            size="icon"
+            className="ml-auto flex-shrink-0"
+          />
         </div>
       </CardHeader>
 
@@ -524,6 +480,13 @@ export function EntryCard({ entry }: EntryCardProps) {
           </div>
 
           <div className="flex-shrink-0 pt-4 border-t flex flex-col sm:flex-row justify-end gap-2">
+            <CopyEntryButton
+              entry={entry}
+              variant="outline"
+              size="default"
+              showLabel={true}
+              className="w-full sm:w-auto"
+            />
             <Dialog
               open={isSuggestEditFormOpen}
               onOpenChange={setIsSuggestEditFormOpen}
