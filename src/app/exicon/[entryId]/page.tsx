@@ -48,7 +48,7 @@ export async function generateMetadata({
   const description =
     exiconEntry.description ||
     `Learn about the ${exiconEntry.name} exercise in the F3 Exicon.`;
-  const url = `https://codex.f3nation.com/exicon/${entryId}`;
+  const url = `https://f3nation.com/exicon/${entryId}`;
   const tags = exiconEntry.tags?.map((tag) => tag.name).join(", ") || "";
 
   return {
