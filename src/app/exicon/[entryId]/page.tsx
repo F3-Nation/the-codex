@@ -16,7 +16,7 @@ import Link from "next/link";
 import { getEntryByIdFromDatabase } from "@/lib/api";
 import CopyLinkButton from "@/components/shared/CopyLinkButton";
 import { SuggestEditsButton } from "@/components/shared/SuggestEditsButton";
-import { CopyEntryUrlButton } from "@/components/shared/CopyEntryUrlButton";
+import { CopyEntryButton } from "@/components/shared/CopyEntryButton";
 import { BackButton } from "@/components/shared/BackButton";
 import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
 import { isHtmlContent } from "@/lib/sanitizeHtml";
@@ -200,7 +200,12 @@ export default async function ExiconEntryPage({
             )}
 
             <div className="flex justify-end gap-2">
-              <CopyEntryUrlButton entry={exiconEntry} />
+              <CopyEntryButton
+                entry={exiconEntry}
+                variant="outline"
+                size="sm"
+                showLabel={true}
+              />
               <SuggestEditsButton entry={exiconEntry} />
             </div>
           </CardContent>
