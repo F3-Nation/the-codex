@@ -27,7 +27,7 @@ export async function generateMetadata({
         const title = `${entry.name} - F3 Lexicon`;
         const description =
           entry.description || `Learn about ${entry.name} in the F3 Lexicon.`;
-        const url = `https://codex.f3nation.com/lexicon?entryId=${entryId}`;
+        const url = `https://f3nation.com/lexicon?entryId=${entryId}`;
 
         return {
           title,

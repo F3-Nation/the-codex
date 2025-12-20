@@ -45,7 +45,7 @@ export function generateEntryUrl(
 ): string {
   const baseRoute = getEntryBaseUrl(entryType);
   const encodedId = encodeURIComponent(entryId);
-  return `https://codex.f3nation.com/${baseRoute}/${encodedId}`;
+  return `https://f3nation.com/${baseRoute}?entryId=${encodedId}`;
 }
 
 /**

@@ -82,6 +82,7 @@ import {
 import { getOAuthConfig } from "@/lib/auth";
 import { TiptapEditor } from "@/components/shared/TiptapEditor";
 import { searchEntriesByName } from "@/app/submit/actions";
+import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
 
 interface UserInfo {
   sub: string;
@@ -137,6 +138,8 @@ export default function AdminPanel() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   const [submissionToReject, setSubmissionToReject] = useState<number | null>(null);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [resolvedMentions, setResolvedMentions] = useState<Record<string, AnyEntry>>({});
 
   const [lexiconEntriesForDisplay, setLexiconEntriesForDisplay] = useState<
     AnyEntry[]
@@ -469,6 +472,29 @@ export default function AdminPanel() {
     setEditedSubmissionData(JSON.parse(JSON.stringify(submission.data))); // Deep clone
     setIsEditingSubmission(false);
     setOriginalEntryForEditView(null);
+
+    // Load mentioned entries for proper display
+    const mentionedEntryIds = submission.submissionType === "new"
+      ? (submission.data as NewEntrySuggestionData).mentionedEntries || []
+      : (submission.data as EditEntrySuggestionData).changes.mentionedEntries || [];
+
+    if (mentionedEntryIds.length > 0) {
+      const resolved: Record<string, AnyEntry> = {};
+      for (const entryId of mentionedEntryIds) {
+        try {
+          const entry = await fetchEntryById(entryId);
+          if (entry) {
+            resolved[entryId] = entry;
+          }
+        } catch (error) {
+          console.error(`Error loading mentioned entry ${entryId}:`, error);
+        }
+      }
+      setResolvedMentions(resolved);
+    } else {
+      setResolvedMentions({});
+    }
+
     if (submission.submissionType === "edit") {
       setIsLoadingOriginalEntry(true);
       try {
@@ -490,6 +516,9 @@ export default function AdminPanel() {
   };
 
   const handleStartEditingSubmission = () => {
+    if (viewingSubmission) {
+      setAdminNotes(viewingSubmission.adminNotes || "");
+    }
     setIsEditingSubmission(true);
   };
 
@@ -498,6 +527,7 @@ export default function AdminPanel() {
       setEditedSubmissionData(
         JSON.parse(JSON.stringify(viewingSubmission.data)),
       );
+      setAdminNotes(viewingSubmission.adminNotes || "");
     }
     setIsEditingSubmission(false);
   };
@@ -507,6 +537,7 @@ export default function AdminPanel() {
       setViewingSubmission({
         ...viewingSubmission,
         data: editedSubmissionData,
+        adminNotes: adminNotes,
       });
     }
     setIsEditingSubmission(false);
@@ -1066,7 +1097,7 @@ export default function AdminPanel() {
                 </DialogTitle>
                 <DialogDescription>
                   {isEditingSubmission
-                    ? "Make any necessary changes before approving"
+                    ? "Edit any field and optionally add a message for the user"
                     : "Reviewing"}{" "}
                   {viewingSubmission?.submissionType === "new"
                     ? "new entry suggestion"
@@ -1284,13 +1315,10 @@ export default function AdminPanel() {
                               Description
                             </TableCell>
                             <TableCell>
-                              <div
+                              <RichTextDisplay
+                                htmlContent={(viewingSubmission.data as NewEntrySuggestionData).description}
+                                mentionedEntries={resolvedMentions}
                                 className="prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{
-                                  __html: (
-                                    viewingSubmission.data as NewEntrySuggestionData
-                                  ).description,
-                                }}
                               />
                             </TableCell>
                           </TableRow>
@@ -1396,131 +1424,123 @@ export default function AdminPanel() {
                     <>
                       {isEditingSubmission && editedSubmissionData ? (
                         <div className="space-y-4">
-                          {(editedSubmissionData as EditEntrySuggestionData)
-                            .changes.name !== undefined && (
+                          <p className="text-sm text-muted-foreground mb-4">
+                            You can edit any field below, not just the user&apos;s suggested changes. Fields marked with * were suggested by the user.
+                          </p>
+
+                          {/* Name - always shown */}
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-change-name">
+                              Name {(editedSubmissionData as EditEntrySuggestionData).changes.name !== undefined && <span className="text-orange-500">*</span>}
+                            </Label>
+                            <Input
+                              id="edit-change-name"
+                              value={
+                                (editedSubmissionData as EditEntrySuggestionData).changes.name !== undefined
+                                  ? (editedSubmissionData as EditEntrySuggestionData).changes.name || ""
+                                  : originalEntryForEditView.name
+                              }
+                              onChange={(e) =>
+                                setEditedSubmissionData({
+                                  ...editedSubmissionData,
+                                  changes: {
+                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    name: e.target.value,
+                                  },
+                                } as EditEntrySuggestionData)
+                              }
+                            />
+                          </div>
+
+                          {/* Description - always shown */}
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-change-description">
+                              Description {(editedSubmissionData as EditEntrySuggestionData).changes.description !== undefined && <span className="text-orange-500">*</span>}
+                            </Label>
+                            <TiptapEditor
+                              value={
+                                (editedSubmissionData as EditEntrySuggestionData).changes.description !== undefined
+                                  ? (editedSubmissionData as EditEntrySuggestionData).changes.description || ""
+                                  : originalEntryForEditView.description
+                              }
+                              onChange={(html) =>
+                                setEditedSubmissionData({
+                                  ...editedSubmissionData,
+                                  changes: {
+                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    description: html,
+                                  },
+                                } as EditEntrySuggestionData)
+                              }
+                              onMentionsChange={(mentions) => {
+                                setEditedSubmissionData({
+                                  ...editedSubmissionData,
+                                  changes: {
+                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    mentionedEntries: mentions.map((m) => m.id),
+                                  },
+                                } as EditEntrySuggestionData);
+                              }}
+                              searchEntries={searchEntriesByName}
+                              placeholder="Edit description..."
+                            />
+                          </div>
+
+                          {/* Aliases - always shown */}
+                          <div className="space-y-2">
+                            <Label htmlFor="edit-change-aliases">
+                              Aliases (comma-separated) {(editedSubmissionData as EditEntrySuggestionData).changes.aliases !== undefined && <span className="text-orange-500">*</span>}
+                            </Label>
+                            <Input
+                              id="edit-change-aliases"
+                              value={
+                                (editedSubmissionData as EditEntrySuggestionData).changes.aliases !== undefined
+                                  ? ((editedSubmissionData as EditEntrySuggestionData).changes.aliases || []).join(", ")
+                                  : (originalEntryForEditView.aliases || []).map(a => a.name).join(", ")
+                              }
+                              onChange={(e) =>
+                                setEditedSubmissionData({
+                                  ...editedSubmissionData,
+                                  changes: {
+                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    aliases: e.target.value
+                                      .split(",")
+                                      .map((a) => a.trim())
+                                      .filter(Boolean),
+                                  },
+                                } as EditEntrySuggestionData)
+                              }
+                            />
+                          </div>
+
+                          {/* Tags - for exicon only, always shown */}
+                          {originalEntryForEditView.type === "exicon" && (
                             <div className="space-y-2">
-                              <Label htmlFor="edit-change-name">Name</Label>
-                              <Input
-                                id="edit-change-name"
-                                value={
-                                  (editedSubmissionData as EditEntrySuggestionData)
-                                    .changes.name || ""
-                                }
-                                onChange={(e) =>
-                                  setEditedSubmissionData({
-                                    ...editedSubmissionData,
-                                    changes: {
-                                      ...(
-                                        editedSubmissionData as EditEntrySuggestionData
-                                      ).changes,
-                                      name: e.target.value,
-                                    },
-                                  } as EditEntrySuggestionData)
-                                }
-                              />
-                            </div>
-                          )}
-                          {(editedSubmissionData as EditEntrySuggestionData)
-                            .changes.description !== undefined && (
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-change-description">
-                                Description
+                              <Label>
+                                Tags {(editedSubmissionData as EditEntrySuggestionData).changes.tags !== undefined && <span className="text-orange-500">*</span>}
                               </Label>
-                              <TiptapEditor
-                                value={
-                                  (editedSubmissionData as EditEntrySuggestionData)
-                                    .changes.description || ""
-                                }
-                                onChange={(html) =>
-                                  setEditedSubmissionData({
-                                    ...editedSubmissionData,
-                                    changes: {
-                                      ...(
-                                        editedSubmissionData as EditEntrySuggestionData
-                                      ).changes,
-                                      description: html,
-                                    },
-                                  } as EditEntrySuggestionData)
-                                }
-                                onMentionsChange={(mentions) => {
-                                  setEditedSubmissionData({
-                                    ...editedSubmissionData,
-                                    changes: {
-                                      ...(
-                                        editedSubmissionData as EditEntrySuggestionData
-                                      ).changes,
-                                      mentionedEntries: mentions.map((m) => m.id),
-                                    },
-                                  } as EditEntrySuggestionData);
-                                }}
-                                searchEntries={searchEntriesByName}
-                                placeholder="Edit description..."
-                              />
-                            </div>
-                          )}
-                          {(editedSubmissionData as EditEntrySuggestionData)
-                            .changes.aliases !== undefined && (
-                            <div className="space-y-2">
-                              <Label htmlFor="edit-change-aliases">
-                                Aliases (comma-separated)
-                              </Label>
-                              <Input
-                                id="edit-change-aliases"
-                                value={(
-                                  (editedSubmissionData as EditEntrySuggestionData)
-                                    .changes.aliases || []
-                                ).join(", ")}
-                                onChange={(e) =>
-                                  setEditedSubmissionData({
-                                    ...editedSubmissionData,
-                                    changes: {
-                                      ...(
-                                        editedSubmissionData as EditEntrySuggestionData
-                                      ).changes,
-                                      aliases: e.target.value
-                                        .split(",")
-                                        .map((a) => a.trim())
-                                        .filter(Boolean),
-                                    },
-                                  } as EditEntrySuggestionData)
-                                }
-                              />
-                            </div>
-                          )}
-                          {originalEntryForEditView.type === "exicon" &&
-                            (editedSubmissionData as EditEntrySuggestionData)
-                              .changes.tags !== undefined && (
-                              <div className="space-y-2">
-                                <Label>Tags</Label>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
-                                  {tags.map((tag) => (
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
+                                {tags.map((tag) => {
+                                  const currentTags = (editedSubmissionData as EditEntrySuggestionData).changes.tags !== undefined
+                                    ? (editedSubmissionData as EditEntrySuggestionData).changes.tags || []
+                                    : (originalEntryForEditView as ExiconEntry).tags.map(t => t.name);
+
+                                  return (
                                     <div
                                       key={tag.id}
                                       className="flex items-center space-x-2"
                                     >
                                       <Checkbox
                                         id={`edit-change-tag-${tag.id}`}
-                                        checked={(
-                                          (
-                                            editedSubmissionData as EditEntrySuggestionData
-                                          ).changes.tags || []
-                                        ).includes(tag.name)}
+                                        checked={currentTags.includes(tag.name)}
                                         onCheckedChange={(checked) => {
-                                          const currentTags =
-                                            (
-                                              editedSubmissionData as EditEntrySuggestionData
-                                            ).changes.tags || [];
                                           const newTags = checked
                                             ? [...currentTags, tag.name]
-                                            : currentTags.filter(
-                                                (t) => t !== tag.name,
-                                              );
+                                            : currentTags.filter((t) => t !== tag.name);
                                           setEditedSubmissionData({
                                             ...editedSubmissionData,
                                             changes: {
-                                              ...(
-                                                editedSubmissionData as EditEntrySuggestionData
-                                              ).changes,
+                                              ...(editedSubmissionData as EditEntrySuggestionData).changes,
                                               tags: newTags,
                                             },
                                           } as EditEntrySuggestionData);
@@ -1533,39 +1553,57 @@ export default function AdminPanel() {
                                         {tag.name}
                                       </Label>
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })}
                               </div>
-                            )}
-                          {originalEntryForEditView.type === "exicon" &&
-                            (editedSubmissionData as EditEntrySuggestionData)
-                              .changes.videoLink !== undefined && (
-                              <div className="space-y-2">
-                                <Label htmlFor="edit-change-videoLink">
-                                  Video Link
-                                </Label>
-                                <Input
-                                  id="edit-change-videoLink"
-                                  type="url"
-                                  value={
-                                    (editedSubmissionData as EditEntrySuggestionData)
-                                      .changes.videoLink || ""
-                                  }
-                                  onChange={(e) =>
-                                    setEditedSubmissionData({
-                                      ...editedSubmissionData,
-                                      changes: {
-                                        ...(
-                                          editedSubmissionData as EditEntrySuggestionData
-                                        ).changes,
-                                        videoLink: e.target.value,
-                                      },
-                                    } as EditEntrySuggestionData)
-                                  }
-                                  placeholder="https://youtube.com/watch?v=..."
-                                />
-                              </div>
-                            )}
+                            </div>
+                          )}
+
+                          {/* Video Link - for exicon only, always shown */}
+                          {originalEntryForEditView.type === "exicon" && (
+                            <div className="space-y-2">
+                              <Label htmlFor="edit-change-videoLink">
+                                Video Link {(editedSubmissionData as EditEntrySuggestionData).changes.videoLink !== undefined && <span className="text-orange-500">*</span>}
+                              </Label>
+                              <Input
+                                id="edit-change-videoLink"
+                                type="url"
+                                value={
+                                  (editedSubmissionData as EditEntrySuggestionData).changes.videoLink !== undefined
+                                    ? (editedSubmissionData as EditEntrySuggestionData).changes.videoLink || ""
+                                    : (originalEntryForEditView as ExiconEntry).videoLink || ""
+                                }
+                                onChange={(e) =>
+                                  setEditedSubmissionData({
+                                    ...editedSubmissionData,
+                                    changes: {
+                                      ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                      videoLink: e.target.value,
+                                    },
+                                  } as EditEntrySuggestionData)
+                                }
+                                placeholder="https://youtube.com/watch?v=..."
+                              />
+                            </div>
+                          )}
+
+                          {/* Admin Notes */}
+                          <Separator className="my-4" />
+                          <div className="space-y-2">
+                            <Label htmlFor="admin-notes">
+                              Admin Message/Notes (Optional)
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Add a message to communicate with the user about any additional changes you made or feedback on their submission.
+                            </p>
+                            <Textarea
+                              id="admin-notes"
+                              value={adminNotes}
+                              onChange={(e) => setAdminNotes(e.target.value)}
+                              placeholder="E.g., I updated the description to include more details about proper form..."
+                              rows={4}
+                            />
+                          </div>
                         </div>
                       ) : (
                         <div className="overflow-x-auto border rounded-md">
@@ -1605,22 +1643,17 @@ export default function AdminPanel() {
                                     Description
                                   </TableCell>
                                   <TableCell>
-                                    <div
+                                    <RichTextDisplay
+                                      htmlContent={originalEntryForEditView.description}
+                                      mentionedEntries={originalEntryForEditView.resolvedMentionsData}
                                       className="prose prose-sm max-w-none"
-                                      dangerouslySetInnerHTML={{
-                                        __html: originalEntryForEditView.description,
-                                      }}
                                     />
                                   </TableCell>
                                   <TableCell>
-                                    <div
+                                    <RichTextDisplay
+                                      htmlContent={(viewingSubmission.data as EditEntrySuggestionData).changes.description || ""}
+                                      mentionedEntries={resolvedMentions}
                                       className="prose prose-sm max-w-none"
-                                      dangerouslySetInnerHTML={{
-                                        __html:
-                                          (
-                                            viewingSubmission.data as EditEntrySuggestionData
-                                          ).changes.description || "",
-                                      }}
                                     />
                                   </TableCell>
                                 </TableRow>

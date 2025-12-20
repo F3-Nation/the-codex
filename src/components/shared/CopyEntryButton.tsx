@@ -114,11 +114,47 @@ ${cleanDescription}`;
       ? stripHtml(entry.description)
       : "No description available.";
 
-    const allContent = `${entry.name}
+    // Build comprehensive content with formatting
+    const parts: string[] = [];
 
-${cleanDescription}
+    // Title
+    parts.push(`📖 ${entry.name}`);
+    parts.push(""); // Empty line
 
-${url}`;
+    // Type
+    const typeLabel = entry.type === "exicon" ? "Exercise" : "Term";
+    parts.push(`Type: ${typeLabel}`);
+    parts.push(""); // Empty line
+
+    // Description
+    parts.push("Description:");
+    parts.push(cleanDescription);
+    parts.push(""); // Empty line
+
+    // Aliases
+    if (entry.aliases && entry.aliases.length > 0) {
+      const aliasNames = entry.aliases.map((a) => a.name).join(", ");
+      parts.push(`Also known as: ${aliasNames}`);
+      parts.push(""); // Empty line
+    }
+
+    // Tags (only for exicon entries)
+    if (entry.type === "exicon" && entry.tags && entry.tags.length > 0) {
+      const tagNames = entry.tags.map((t) => t.name).join(", ");
+      parts.push(`Tags: ${tagNames}`);
+      parts.push(""); // Empty line
+    }
+
+    // Video Link (only for exicon entries)
+    if (entry.type === "exicon" && entry.videoLink) {
+      parts.push(`Video: ${entry.videoLink}`);
+      parts.push(""); // Empty line
+    }
+
+    // URL
+    parts.push(`Link: ${url}`);
+
+    const allContent = parts.join("\n");
 
     const result = await copyToClipboard(allContent);
 
@@ -127,7 +163,7 @@ ${url}`;
       setTimeout(() => setCopied(false), 2000);
       toast({
         title: "All Details Copied!",
-        description: `${entry.name} name, description, and URL copied to clipboard.`,
+        description: `${entry.name} complete information copied to clipboard.`,
       });
     } else {
       if (isInIframeUtil()) {

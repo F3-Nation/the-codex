@@ -14,6 +14,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Allow clipboard access when embedded in iframes (e.g., on f3nation.com)
+        source: "/:path*",
+        headers: [
+          {
+            key: "Permissions-Policy",
+            value: "clipboard-write=(self \"https://f3nation.com\" \"https://www.f3nation.com\")",
+          },
+        ],
+      },
+      {
         source: "/callback/:path*",
         headers: [
           {
