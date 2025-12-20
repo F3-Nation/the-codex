@@ -117,8 +117,9 @@ export function RichTextDisplay({
       textNodes.push(node);
     }
 
-    // Regex to match @mentions
-    const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s|$|[,.!?;:])/g;
+    // Regex to match @mentions - capture until we hit a newline or end of string
+    // This allows multi-word mentions like "@Arm circles" and we'll match them against resolved entries
+    const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s*[\r\n]|$)/g;
 
     textNodes.forEach((textNode) => {
       const text = textNode.textContent || "";
@@ -132,7 +133,7 @@ export function RichTextDisplay({
       let lastIndex = 0;
 
       matches.forEach((match) => {
-        const mentionText = match[0]; // Full match including @
+        let mentionText = match[0]; // Full match including @
         const mentionName = match[1].trim();
         const index = match.index!;
 
@@ -144,9 +145,27 @@ export function RichTextDisplay({
         }
 
         // Try to find the entry in mentionedEntries by name
-        const entry = Object.values(mentionedEntries).find(
+        // First try exact match
+        let entry = Object.values(mentionedEntries).find(
           (e) => e.name.toLowerCase() === mentionName.toLowerCase()
         );
+
+        // If no exact match and mention has multiple words, try progressively shorter versions
+        // This handles cases like "@Arm circles forward" where the entry is just "Arm circles"
+        if (!entry && mentionName.includes(' ')) {
+          const words = mentionName.split(' ');
+          for (let i = words.length - 1; i > 0; i--) {
+            const shorterName = words.slice(0, i).join(' ');
+            entry = Object.values(mentionedEntries).find(
+              (e) => e.name.toLowerCase() === shorterName.toLowerCase()
+            );
+            if (entry) {
+              // Update mentionText to match the actual entry name
+              mentionText = `@${entry.name}`;
+              break;
+            }
+          }
+        }
 
         if (entry) {
           // Create a link for resolved mentions

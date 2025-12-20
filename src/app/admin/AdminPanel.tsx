@@ -500,14 +500,36 @@ export default function AdminPanel() {
       : (submission.data as EditEntrySuggestionData).changes.description;
 
     if (description) {
-      const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s|$|[,.!?;:])/g;
+      // Regex to match @mentions - capture until we hit a newline or end of string
+      // This allows multi-word mentions like "@Arm circles" and we'll match them against database
+      const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s*[\r\n]|$)/g;
       const matches = Array.from(description.matchAll(mentionRegex));
       const plainTextMentionNames = matches.map(m => m[1].trim());
 
       for (const mentionName of plainTextMentionNames) {
         try {
-          // Try to find entry by name
-          const entry = await fetchEntryById(mentionName);
+          // Try to find entry by name using search
+          // First, try exact match with full name
+          let searchResults = await searchEntriesByName(mentionName);
+          let exactMatch = searchResults?.find(
+            e => e.name.toLowerCase() === mentionName.toLowerCase()
+          );
+
+          // If no exact match, try progressively shorter versions
+          // This handles cases like "@Arm circles forward" where the entry is just "@Arm circles"
+          if (!exactMatch && mentionName.includes(' ')) {
+            const words = mentionName.split(' ');
+            for (let i = words.length - 1; i > 0; i--) {
+              const shorterName = words.slice(0, i).join(' ');
+              searchResults = await searchEntriesByName(shorterName);
+              exactMatch = searchResults?.find(
+                e => e.name.toLowerCase() === shorterName.toLowerCase()
+              );
+              if (exactMatch) break;
+            }
+          }
+
+          const entry = exactMatch || (searchResults && searchResults.length > 0 ? searchResults[0] : null);
           if (entry && !resolved[entry.id]) {
             resolved[entry.id] = entry;
           }
