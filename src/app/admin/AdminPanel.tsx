@@ -478,8 +478,10 @@ export default function AdminPanel() {
       ? (submission.data as NewEntrySuggestionData).mentionedEntries || []
       : (submission.data as EditEntrySuggestionData).changes.mentionedEntries || [];
 
+    const resolved: Record<string, AnyEntry> = {};
+
+    // Load entries from mentionedEntries array
     if (mentionedEntryIds.length > 0) {
-      const resolved: Record<string, AnyEntry> = {};
       for (const entryId of mentionedEntryIds) {
         try {
           const entry = await fetchEntryById(entryId);
@@ -490,10 +492,32 @@ export default function AdminPanel() {
           console.error(`Error loading mentioned entry ${entryId}:`, error);
         }
       }
-      setResolvedMentions(resolved);
-    } else {
-      setResolvedMentions({});
     }
+
+    // Also extract and resolve plain text mentions from description
+    const description = submission.submissionType === "new"
+      ? (submission.data as NewEntrySuggestionData).description
+      : (submission.data as EditEntrySuggestionData).changes.description;
+
+    if (description) {
+      const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s|$|[,.!?;:])/g;
+      const matches = Array.from(description.matchAll(mentionRegex));
+      const plainTextMentionNames = matches.map(m => m[1].trim());
+
+      for (const mentionName of plainTextMentionNames) {
+        try {
+          // Try to find entry by name
+          const entry = await fetchEntryById(mentionName);
+          if (entry && !resolved[entry.id]) {
+            resolved[entry.id] = entry;
+          }
+        } catch (error) {
+          // Silently fail for plain text mentions that don't resolve
+        }
+      }
+    }
+
+    setResolvedMentions(resolved);
 
     if (submission.submissionType === "edit") {
       setIsLoadingOriginalEntry(true);
@@ -1089,7 +1113,7 @@ export default function AdminPanel() {
         <DialogContent className="sm:max-w-[725px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <div>
+              <div className="mr-8">
                 <DialogTitle>
                   {isEditingSubmission
                     ? "Edit Submission"
@@ -1295,6 +1319,24 @@ export default function AdminPanel() {
                           </div>
                         </>
                       )}
+
+                      {/* Admin Notes */}
+                      <Separator className="my-4" />
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-notes-new">
+                          Admin Message/Notes (Optional)
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Add a message to communicate with the user about any additional changes you made or feedback on their submission.
+                        </p>
+                        <Textarea
+                          id="admin-notes-new"
+                          value={adminNotes}
+                          onChange={(e) => setAdminNotes(e.target.value)}
+                          placeholder="E.g., I updated the description to include more details about proper form..."
+                          rows={4}
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="overflow-x-auto border rounded-md">

@@ -75,22 +75,25 @@ export function RichTextDisplay({
       const entryName = span.getAttribute("data-name") || span.textContent || "";
       const entryType = span.getAttribute("data-type") || "lexicon";
       const entryDescription = span.getAttribute("data-entry-description") || "";
-      const mentionText = span.textContent || "";
 
       if (entryId) {
+        // Get the actual entry data from mentionedEntries if available
+        const entry = mentionedEntries[entryId];
+        const displayName = entry?.name || entryName;
+
         mentions.push({
           id: entryId,
-          name: entryName,
-          text: mentionText,
+          name: displayName,
+          text: `@${displayName}`,
           type: entryType,
-          description: entryDescription,
+          description: entry?.description || entryDescription,
         });
 
         // Create a link element
         const link = document.createElement("a");
         link.href = `/${entryType}/${entryId}`;
         link.className = "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
-        link.textContent = mentionText;
+        link.textContent = `@${displayName}`;
 
         // Wrap in hover card trigger
         const wrapper = document.createElement("span");
@@ -99,6 +102,88 @@ export function RichTextDisplay({
 
         span.replaceWith(wrapper);
       }
+    });
+
+    // Process plain text mentions (like @Arm circles)
+    const textNodes: Node[] = [];
+    const walker = document.createTreeWalker(
+      tempDiv,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let node;
+    while ((node = walker.nextNode())) {
+      textNodes.push(node);
+    }
+
+    // Regex to match @mentions
+    const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s|$|[,.!?;:])/g;
+
+    textNodes.forEach((textNode) => {
+      const text = textNode.textContent || "";
+      if (!text.includes("@")) return;
+
+      const matches = Array.from(text.matchAll(mentionRegex));
+      if (matches.length === 0) return;
+
+      // Create a fragment to hold the new nodes
+      const fragment = document.createDocumentFragment();
+      let lastIndex = 0;
+
+      matches.forEach((match) => {
+        const mentionText = match[0]; // Full match including @
+        const mentionName = match[1].trim();
+        const index = match.index!;
+
+        // Add text before the mention
+        if (index > lastIndex) {
+          fragment.appendChild(
+            document.createTextNode(text.substring(lastIndex, index))
+          );
+        }
+
+        // Try to find the entry in mentionedEntries by name
+        const entry = Object.values(mentionedEntries).find(
+          (e) => e.name.toLowerCase() === mentionName.toLowerCase()
+        );
+
+        if (entry) {
+          // Create a link for resolved mentions
+          const link = document.createElement("a");
+          link.href = `/${entry.type}/${entry.id}`;
+          link.className = "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
+          link.textContent = mentionText;
+
+          const wrapper = document.createElement("span");
+          wrapper.setAttribute("data-mention-id", entry.id);
+          wrapper.appendChild(link);
+
+          fragment.appendChild(wrapper);
+
+          // Add to mentions array for hover cards
+          mentions.push({
+            id: entry.id,
+            name: entry.name,
+            text: mentionText,
+            type: entry.type || "lexicon",
+            description: entry.description || "",
+          });
+        } else {
+          // Keep as plain text if not resolved
+          fragment.appendChild(document.createTextNode(mentionText));
+        }
+
+        lastIndex = index + mentionText.length;
+      });
+
+      // Add remaining text
+      if (lastIndex < text.length) {
+        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+      }
+
+      // Replace the text node with the fragment
+      textNode.parentNode?.replaceChild(fragment, textNode);
     });
 
     // Clean up blockquotes - remove any quote characters
