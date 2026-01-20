@@ -45,7 +45,7 @@ import { CopyEntryButton } from "@/components/shared/CopyEntryButton";
 interface EntryCardProps {
   entry: AnyEntry & {
     mentionedEntries?: string[];
-    resolvedMentionsData?: Record<string, AnyEntry>;
+    resolvedMentionsData?: Record<string, AnyEntry | import("@/lib/types").ReferencedEntry>;
   };
 }
 
@@ -53,7 +53,7 @@ const MAX_DESC_LENGTH_PREVIEW = 150;
 
 const renderDescriptionWithMentions = (
   description: string | undefined,
-  resolvedMentionsData?: Record<string, AnyEntry>,
+  resolvedMentionsData?: Record<string, AnyEntry | import("@/lib/types").ReferencedEntry>,
   colorVariant: "default" | "vibrant" = "default",
 ) => {
   if (!description) {
@@ -100,7 +100,7 @@ const renderDescriptionWithMentions = (
           foundMentions.push({
             index: lastIndexMain,
             text: mainSearchString,
-            entry,
+            entry: entry as AnyEntry,
           });
           addedMentions.add(uniqueMentionKey);
         }
@@ -110,26 +110,28 @@ const renderDescriptionWithMentions = (
         );
       }
 
-      entry.aliases?.forEach((alias) => {
-        const aliasName = typeof alias === "string" ? alias : alias.name;
-        const aliasSearchString = `@${aliasName}`;
-        let lastIndexAlias = description.indexOf(aliasSearchString, 0);
-        while (lastIndexAlias !== -1) {
-          const uniqueMentionKey = `${entryKey}-${lastIndexAlias}`;
-          if (!addedMentions.has(uniqueMentionKey)) {
-            foundMentions.push({
-              index: lastIndexAlias,
-              text: aliasSearchString,
-              entry,
-            });
-            addedMentions.add(uniqueMentionKey);
+      if ("aliases" in entry && entry.aliases) {
+        entry.aliases.forEach((alias: any) => {
+          const aliasName = typeof alias === "string" ? alias : alias.name;
+          const aliasSearchString = `@${aliasName}`;
+          let lastIndexAlias = description.indexOf(aliasSearchString, 0);
+          while (lastIndexAlias !== -1) {
+            const uniqueMentionKey = `${entryKey}-${lastIndexAlias}`;
+            if (!addedMentions.has(uniqueMentionKey)) {
+              foundMentions.push({
+                index: lastIndexAlias,
+                text: aliasSearchString,
+                entry: entry as AnyEntry,
+              });
+              addedMentions.add(uniqueMentionKey);
+            }
+            lastIndexAlias = description.indexOf(
+              aliasSearchString,
+              lastIndexAlias + 1,
+            );
           }
-          lastIndexAlias = description.indexOf(
-            aliasSearchString,
-            lastIndexAlias + 1,
-          );
-        }
-      });
+        });
+      }
     });
   }
 

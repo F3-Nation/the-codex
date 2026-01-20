@@ -22,7 +22,7 @@ import {
 interface ExiconClientPageContentProps {
   initialEntries: (ExiconEntry & {
     mentionedEntries?: string[];
-    resolvedMentionsData?: Record<string, AnyEntry>;
+    resolvedMentionsData?: Record<string, AnyEntry | import("@/lib/types").ReferencedEntry>;
   })[];
   allTags: Tag[];
 }

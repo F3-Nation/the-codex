@@ -5,7 +5,7 @@ import {
   getEntryByIdFromDatabase,
   fetchTagsFromDatabase,
 } from "@/lib/api";
-import type { ExiconEntry, AnyEntry, Tag } from "@/lib/types";
+import type { ExiconEntry, AnyEntry, Tag, ReferencedEntry } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -164,16 +164,34 @@ export default async function ExiconPage({
     const exiconEntries = allEntries.filter(
       (entry): entry is ExiconEntry => entry.type === "exicon",
     );
-    enrichedEntries = exiconEntries.map((entry) => {
-      const processedTags = coerceTagsToValidTagArray(entry.tags);
-      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
+    // Resolve plain text mentions for all entries
+    enrichedEntries = (await Promise.all(
+      exiconEntries.map(async (entry) => {
+        const processedTags = coerceTagsToValidTagArray(entry.tags);
+        const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
 
-      return {
-        ...entry,
-        tags: processedTags,
-        aliases: normalizedAliases,
-      };
-    });
+        // Use the resolvedMentionsData already populated by the API
+        // The API's fetchAllEntries already resolves mentions and keys them by both ID and name
+        const resolvedMentions: Record<string, AnyEntry | ReferencedEntry> =
+          (entry as any).resolvedMentionsData || {};
+
+        // Add any references not already in resolvedMentions
+        if (entry.references) {
+          entry.references.forEach((ref) => {
+            if (!resolvedMentions[ref.id]) {
+              resolvedMentions[ref.id] = ref;
+            }
+          });
+        }
+
+        return {
+          ...entry,
+          tags: processedTags,
+          aliases: normalizedAliases,
+          resolvedMentionsData: resolvedMentions,
+        };
+      })
+    )) as any;
   } catch (fetchError) {
     console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);
     errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;

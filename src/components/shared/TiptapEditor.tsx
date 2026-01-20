@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
@@ -36,84 +36,101 @@ const CustomBlockquote = Blockquote.extend({
   },
 });
 
-// Mention suggestion component
-function MentionList({
-  items,
-  command,
-  resetKey,
-}: {
+// Mention list ref interface for Tiptap's suggestion plugin
+interface MentionListRef {
+  onKeyDown: (props: { event: KeyboardEvent }) => boolean;
+}
+
+interface MentionListProps {
   items: EntryWithReferences[];
-  command: (item: EntryWithReferences) => void;
-  resetKey: number;
-}) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  command: (item: { id: string; label: string }) => void;
+}
 
-  const onKeyDown = useCallback((event: KeyboardEvent) => {
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setSelectedIndex((prevIndex) => (prevIndex + items.length - 1) % items.length);
-      return true;
-    }
+// Mention suggestion component
+const MentionList = forwardRef<MentionListRef, MentionListProps>(
+  function MentionList({ items, command }, ref) {
+    const [selectedIndex, setSelectedIndex] = useState(0);
 
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setSelectedIndex((prevIndex) => (prevIndex + 1) % items.length);
-      return true;
-    }
+    // Reset selected index when items change - this is the official Tiptap pattern
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    useEffect(() => setSelectedIndex(0), [items]);
 
-    if (event.key === "Enter") {
-      event.preventDefault();
-      if (items[selectedIndex]) {
-        command(items[selectedIndex]);
+    // Handle selecting a mention item
+    const selectItem = (index: number) => {
+      const item = items[index];
+      if (item) {
+        // Transform to use 'label' instead of 'name' for Tiptap Mention extension
+        command({ id: item.id, label: item.name });
       }
-      return true;
+    };
+
+    const upHandler = () => {
+      setSelectedIndex((selectedIndex + items.length - 1) % items.length);
+    };
+
+    const downHandler = () => {
+      setSelectedIndex((selectedIndex + 1) % items.length);
+    };
+
+    const enterHandler = () => {
+      selectItem(selectedIndex);
+    };
+
+    // Expose onKeyDown via ref for Tiptap's suggestion plugin
+    // Note: Tiptap calls this with { event } object, not just event
+    useImperativeHandle(ref, () => ({
+      onKeyDown: ({ event }: { event: KeyboardEvent }) => {
+        if (event.key === "ArrowUp") {
+          upHandler();
+          return true;
+        }
+
+        if (event.key === "ArrowDown") {
+          downHandler();
+          return true;
+        }
+
+        if (event.key === "Enter") {
+          enterHandler();
+          return true;
+        }
+
+        return false;
+      },
+    }));
+
+    if (items.length === 0) {
+      return (
+        <div className="mention-suggestions">
+          <div className="no-results">No entries found</div>
+        </div>
+      );
     }
 
-    return false;
-  }, [items, selectedIndex, command]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      onKeyDown(event);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onKeyDown]);
-
-  if (items.length === 0) {
     return (
       <div className="mention-suggestions">
-        <div className="no-results">No entries found</div>
+        {items.map((item, index) => (
+          <div
+            key={item.id}
+            className={cn(
+              "suggestion-item",
+              index === selectedIndex ? "is-selected" : ""
+            )}
+            onClick={() => selectItem(index)}
+          >
+            <span className="suggestion-item-name">{item.name}</span>
+            {item.description && (
+              <span className="suggestion-item-description">
+                {item.description}
+              </span>
+            )}
+            <span className="suggestion-item-link">View Entry</span>
+          </div>
+        ))}
       </div>
     );
   }
-
-  return (
-    <div className="mention-suggestions">
-      {items.map((item, index) => (
-        <div
-          key={item.id}
-          className={cn(
-            "suggestion-item",
-            index === selectedIndex ? "is-selected" : ""
-          )}
-          onClick={() => command(item)}
-        >
-          <span className="suggestion-item-name">{item.name}</span>
-          {item.description && (
-            <span className="suggestion-item-description">
-              {item.description}
-            </span>
-          )}
-          <span className="suggestion-item-link">View Entry</span>
-        </div>
-      ))}
-    </div>
-  );
-}
+);
 
 export function TiptapEditor({
   value,
@@ -125,8 +142,8 @@ export function TiptapEditor({
   editable = true,
 }: TiptapEditorProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestionKey, setSuggestionKey] = useState(0);
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -172,7 +189,6 @@ export function TiptapEditor({
                 try {
                   setIsLoading(true);
                   const results = await searchEntries(query);
-                  setSuggestionKey(k => k + 1);
                   resolve(results.slice(0, 10));
                 } catch (error) {
                   console.error("Error searching entries:", error);
@@ -184,16 +200,13 @@ export function TiptapEditor({
             });
           },
           render: () => {
-            let component: ReactRenderer<
-              typeof MentionList,
-              { items: EntryWithReferences[]; command: (item: EntryWithReferences) => void; resetKey: number }
-            >;
+            let component: ReactRenderer<MentionListRef, MentionListProps>;
             let popup: TippyInstance[];
 
             return {
               onStart: (props) => {
                 component = new ReactRenderer(MentionList, {
-                  props: { ...props, resetKey: suggestionKey },
+                  props,
                   editor: props.editor,
                 });
 
@@ -203,17 +216,18 @@ export function TiptapEditor({
 
                 popup = tippy("body", {
                   getReferenceClientRect: props.clientRect as () => DOMRect,
-                  appendTo: () => document.body,
+                  appendTo: () => containerRef.current || document.body,
                   content: component.element,
                   showOnCreate: true,
                   interactive: true,
                   trigger: "manual",
                   placement: "bottom-start",
+                  zIndex: 99999,
                 });
               },
 
               onUpdate(props) {
-                component.updateProps({ ...props, resetKey: suggestionKey });
+                component.updateProps(props);
 
                 if (!props.clientRect) {
                   return;
@@ -230,8 +244,8 @@ export function TiptapEditor({
                   return true;
                 }
 
-                // @ts-ignore
-                return component.ref?.onKeyDown(props.event);
+                // Pass the props object (which contains { event }) to the ref's onKeyDown
+                return component.ref?.onKeyDown({ event: props.event }) ?? false;
               },
 
               onExit() {
@@ -291,7 +305,7 @@ export function TiptapEditor({
   }
 
   return (
-    <div className={cn("tiptap-editor-container", className)}>
+    <div ref={containerRef} className={cn("tiptap-editor-container", className)}>
       {editable && <TiptapToolbar editor={editor} />}
       <EditorContent editor={editor} />
       {isLoading && (

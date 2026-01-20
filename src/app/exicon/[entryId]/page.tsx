@@ -21,6 +21,7 @@ import { BackButton } from "@/components/shared/BackButton";
 import { RichTextDisplay } from "@/components/shared/RichTextDisplay";
 import { isHtmlContent } from "@/lib/sanitizeHtml";
 import { convertPlainTextToHtml } from "@/lib/textToHtml";
+import type { AnyEntry, ReferencedEntry } from "@/lib/types";
 
 export async function generateMetadata({
   params,
@@ -106,6 +107,20 @@ export default async function ExiconEntryPage({
     ? getYouTubeEmbedUrl(exiconEntry.videoLink)
     : null;
 
+  // Use the resolvedMentionsData already populated by getEntryByIdFromDatabase
+  // The API keys entries by both ID and name for flexible lookup
+  const resolvedMentions: Record<string, AnyEntry | ReferencedEntry> =
+    (entry as any).resolvedMentionsData || {};
+
+  // Add any references not already in resolvedMentions
+  if (exiconEntry.references) {
+    exiconEntry.references.forEach((ref) => {
+      if (!resolvedMentions[ref.id]) {
+        resolvedMentions[ref.id] = ref;
+      }
+    });
+  }
+
   return (
     <div className="bg-gray-50 dark:bg-gray-950 min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
@@ -131,18 +146,10 @@ export default async function ExiconEntryPage({
                     ? exiconEntry.description
                     : convertPlainTextToHtml(
                       exiconEntry.description,
-                      exiconEntry.references
+                      Object.values(resolvedMentions)
                     )
                 }
-                mentionedEntries={
-                  exiconEntry.references?.reduce(
-                    (acc, ref) => {
-                      acc[ref.id] = ref;
-                      return acc;
-                    },
-                    {} as Record<string, typeof exiconEntry.references[0]>
-                  )
-                }
+                mentionedEntries={resolvedMentions}
               />
             </div>
 

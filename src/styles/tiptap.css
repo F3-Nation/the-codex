@@ -460,8 +460,8 @@
 /* ==================== MENTION SUGGESTIONS ==================== */
 
 .mention-suggestions {
-  position: absolute;
-  z-index: 9999;
+  position: relative;
+  z-index: 99999;
   background-color: white;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
@@ -471,6 +471,16 @@
   max-height: 200px;
   overflow-y: auto;
   min-width: 250px;
+  pointer-events: auto;
+}
+
+/* Ensure tippy popup content is clickable inside modals/dialogs */
+.tippy-box {
+  pointer-events: auto !important;
+}
+
+.tippy-content {
+  pointer-events: auto !important;
 }
 
 .dark .mention-suggestions {

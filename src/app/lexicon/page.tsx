@@ -8,7 +8,7 @@ import {
   getEntryByIdFromDatabase,
   fetchTagsFromDatabase,
 } from "@/lib/api";
-import type { AnyEntry, LexiconEntry, Tag } from "@/lib/types";
+import type { AnyEntry, LexiconEntry, Tag, ReferencedEntry } from "@/lib/types";
 
 export async function generateMetadata({
   searchParams,
@@ -132,15 +132,32 @@ export default async function LexiconPage({
       (entry): entry is LexiconEntry => entry.type === "lexicon",
     );
 
-    // fetchAllEntries() already resolves mentioned entries, just normalize aliases
-    enrichedEntries = lexiconEntries.map((entry) => {
-      const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
+    // Resolve plain text mentions for all entries
+    enrichedEntries = (await Promise.all(
+      lexiconEntries.map(async (entry) => {
+        const normalizedAliases = normalizeAliases(entry.aliases, entry.id);
 
-      return {
-        ...entry,
-        aliases: normalizedAliases,
-      };
-    });
+        // Use the resolvedMentionsData already populated by the API
+        // The API's fetchAllEntries already resolves mentions and keys them by both ID and name
+        const resolvedMentions: Record<string, AnyEntry | ReferencedEntry> =
+          (entry as any).resolvedMentionsData || {};
+
+        // Add any references not already in resolvedMentions
+        if (entry.references) {
+          entry.references.forEach((ref) => {
+            if (!resolvedMentions[ref.id]) {
+              resolvedMentions[ref.id] = ref;
+            }
+          });
+        }
+
+        return {
+          ...entry,
+          aliases: normalizedAliases,
+          resolvedMentionsData: resolvedMentions,
+        };
+      })
+    )) as any;
   } catch (fetchError) {
     console.error("❌ LexiconPage: Failed to fetch entries:", fetchError);
     errorMessage = `Failed to load entries: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`;
