@@ -10,8 +10,10 @@ function initializePool(): Pool {
 
   if (useUnixSocket) {
     const dbUser = process.env.DB_USER;
-    const dbPassword = process.env.DB_PASSWORD;
     const dbName = process.env.DB_NAME;
+    // DB_PASSWORD is intentionally optional: when Cloud SQL Auth Proxy uses IAM
+    // database authentication, the proxy handles auth and no password is required.
+    const dbPassword = process.env.DB_PASSWORD;
 
     if (!dbUser || !dbName) {
       throw new Error(
@@ -19,12 +21,16 @@ function initializePool(): Pool {
       );
     }
 
-    const newPool = new Pool({
+    const poolConfig: ConstructorParameters<typeof Pool>[0] = {
       user: dbUser,
-      password: dbPassword,
       database: dbName,
       host: instanceUnixSocket,
-    });
+    };
+    if (dbPassword) {
+      poolConfig.password = dbPassword;
+    }
+
+    const newPool = new Pool(poolConfig);
 
     newPool.on("error", (err) => {
       console.error("Unexpected error on idle PostgreSQL client:", err);
