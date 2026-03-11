@@ -71,7 +71,7 @@ env:
     availability:
       - RUNTIME
   - variable: DB_PASSWORD
-    secret: codex-db-password
+    secret: client-database-password
     availability:
       - RUNTIME
   - variable: DB_NAME
