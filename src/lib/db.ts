@@ -4,44 +4,11 @@ import { Pool, type PoolClient } from "pg";
 let pool: Pool | null = null;
 
 function initializePool(): Pool {
-  const instanceUnixSocket = process.env.INSTANCE_UNIX_SOCKET; // e.g. /cloudsql/PROJECT:REGION:INSTANCE
-  const useUnixSocket =
-    instanceUnixSocket && process.env.DB_USE_UNIX_SOCKET !== "false";
-
-  if (useUnixSocket) {
-    const dbUser = process.env.DB_USER;
-    const dbPassword = process.env.DB_PASSWORD;
-    const dbName = process.env.DB_NAME;
-
-    if (!dbUser || !dbName) {
-      throw new Error(
-        "INSTANCE_UNIX_SOCKET is set but DB_USER and/or DB_NAME are missing.",
-      );
-    }
-
-    const newPool = new Pool({
-      user: dbUser,
-      password: dbPassword,
-      database: dbName,
-      host: instanceUnixSocket,
-    });
-
-    newPool.on("error", (err) => {
-      console.error("Unexpected error on idle PostgreSQL client:", err);
-    });
-
-    console.log("✅ PostgreSQL pool initialized via Cloud SQL Unix socket.");
-    return newPool;
-  }
-
-  // Fallback: direct TCP connection via DATABASE_URL
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
     console.error("❌ CRITICAL: DATABASE_URL is not set in the environment.");
-    throw new Error(
-      "Neither INSTANCE_UNIX_SOCKET nor DATABASE_URL is configured. Cannot connect to the database.",
-    );
+    throw new Error("DATABASE_URL is missing. Cannot connect to the database.");
   }
 
   const isProduction = process.env.NODE_ENV === "production";
@@ -56,7 +23,6 @@ function initializePool(): Pool {
     console.error("Unexpected error on idle PostgreSQL client:", err);
   });
 
-  console.log("✅ PostgreSQL pool initialized via DATABASE_URL (TCP).");
   return newPool;
 }
 
