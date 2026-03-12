@@ -63,11 +63,11 @@ env:
   # Cloud SQL Auth Proxy (Unix socket) connection.
   # Set INSTANCE_UNIX_SOCKET to enable; set DB_USE_UNIX_SOCKET=false to force DATABASE_URL fallback.
   - variable: INSTANCE_UNIX_SOCKET
-    secret: codex-instance-unix-socket
+    value: /cloudsql/f3data:us-central1:f3data
     availability:
       - RUNTIME
   - variable: DB_USER
-    secret: codex-db-user
+    value: app_codex
     availability:
       - RUNTIME
   - variable: DB_PASSWORD
@@ -75,6 +75,6 @@ env:
     availability:
       - RUNTIME
   - variable: DB_NAME
-    secret: codex-db-name
+    value: f3_prod
     availability:
       - RUNTIME
