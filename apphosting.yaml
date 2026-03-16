@@ -59,3 +59,32 @@ env:
     availability:
       - BUILD
       - RUNTIME
+
+  # Database connection mode: "connector" (Cloud SQL Connector) or "direct" (DATABASE_URL).
+  - variable: DB_CONNECTION_MODE
+    value: direct
+    availability:
+      - RUNTIME
+
+  # Cloud SQL Connector settings (only used when DB_CONNECTION_MODE=connector).
+  - variable: CLOUD_SQL_CONNECTION_NAME
+    value: f3data:us-central1:f3data
+    availability:
+      - RUNTIME
+  - variable: DB_USER
+    value: app_codex
+    availability:
+      - RUNTIME
+  - variable: DB_PASSWORD
+    secret: client-database-password
+    availability:
+      - RUNTIME
+  - variable: DB_NAME
+    value: f3_prod
+    availability:
+      - RUNTIME
+
+  - variable: CLOUD_SQL_IP_TYPE
+    value: PUBLIC
+    availability:
+      - RUNTIME
