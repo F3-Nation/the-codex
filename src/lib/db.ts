@@ -33,12 +33,15 @@ async function createCloudSqlPool(): Promise<Pool> {
     ipType: ipAddressType,
   });
 
+  const searchPath = process.env.DB_SCHEMA ?? "public";
+
   const newPool = new Pool({
     ...clientOpts,
     user: dbUser,
     password: dbPassword,
     database: dbName,
     max: 10,
+    options: `-c search_path=${searchPath}`,
   });
 
   newPool.on("error", (err) => {
@@ -64,9 +67,12 @@ function createDirectPool(): Pool {
   const isProduction = process.env.NODE_ENV === "production";
   const ssl = isProduction ? { rejectUnauthorized: false } : false;
 
+  const searchPath = process.env.DB_SCHEMA ?? "public";
+
   const newPool = new Pool({
     connectionString,
     ssl,
+    options: `-c search_path=${searchPath}`,
   });
 
   newPool.on("error", (err) => {

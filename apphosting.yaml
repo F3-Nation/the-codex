@@ -84,6 +84,10 @@ env:
     value: f3_prod
     availability:
       - RUNTIME
+  - variable: DB_SCHEMA
+    value: codex,public
+    availability:
+      - RUNTIME
 
   - variable: CLOUD_SQL_IP_TYPE
     secret: codex-cloud-sql-ip-type
