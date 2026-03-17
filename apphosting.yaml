@@ -62,9 +62,10 @@ env:
 
   # Database connection mode: "connector" (Cloud SQL Connector) or "direct" (DATABASE_URL).
   - variable: DB_CONNECTION_MODE
-    value: direct
+    secret: codex-db-connection-mode
     availability:
       - RUNTIME
+      - BUILD
 
   # Cloud SQL Connector settings (only used when DB_CONNECTION_MODE=connector).
   - variable: CLOUD_SQL_CONNECTION_NAME
@@ -85,6 +86,7 @@ env:
       - RUNTIME
 
   - variable: CLOUD_SQL_IP_TYPE
-    value: PUBLIC
+    secret: codex-cloud-sql-ip-type
     availability:
       - RUNTIME
+      - BUILD
