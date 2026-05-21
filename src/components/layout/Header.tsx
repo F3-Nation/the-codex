@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { Menu, Flame } from "lucide-react";
+import { Menu, Flame, Sun, Moon } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -17,6 +18,7 @@ const navItems = [
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -36,9 +38,25 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
+          >
+            {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
         </nav>
 
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
+          >
+            {resolvedTheme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
