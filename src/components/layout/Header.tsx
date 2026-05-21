@@ -1,6 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Menu, Flame } from "lucide-react";
 
 const navItems = [
@@ -12,6 +16,8 @@ const navItems = [
 ];
 
 export function Header() {
+  const [open, setOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
@@ -33,7 +39,7 @@ export function Header() {
         </nav>
 
         <div className="md:hidden">
-          <Sheet>
+          <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -41,11 +47,15 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
+              <VisuallyHidden>
+                <SheetTitle>Navigation Menu</SheetTitle>
+              </VisuallyHidden>
               <nav className="grid gap-6 text-lg font-medium mt-8">
                 {navItems.map((item) => (
                   <Link
                     key={item.label}
                     href={item.href}
+                    onClick={() => setOpen(false)}
                     className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
                   >
                     {item.label}
