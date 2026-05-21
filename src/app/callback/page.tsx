@@ -39,7 +39,6 @@ function CallbackContent() {
       const state = searchParams.get("state");
       const errorParam = searchParams.get("error");
 
-
       if (errorParam) {
         setError(`OAuth error: ${errorParam}`);
         return;
@@ -60,7 +59,6 @@ function CallbackContent() {
       try {
         // Verify state parameter structure (handle cross-browser scenarios)
         const storedState = localStorage.getItem("oauth_state");
-
 
         // Decode and validate state parameter structure
         const decodeState = (state: string) => {

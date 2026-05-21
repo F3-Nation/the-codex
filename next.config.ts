@@ -19,7 +19,8 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Permissions-Policy",
-            value: "clipboard-write=(self \"https://f3nation.com\" \"https://www.f3nation.com\")",
+            value:
+              'clipboard-write=(self "https://f3nation.com" "https://www.f3nation.com")',
           },
         ],
       },

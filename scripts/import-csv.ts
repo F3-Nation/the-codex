@@ -57,7 +57,12 @@ function parseCSV(text: string): string[][] {
           }
         }
       } else {
-        while (i < n && text[i] !== "," && text[i] !== "\n" && text[i] !== "\r") {
+        while (
+          i < n &&
+          text[i] !== "," &&
+          text[i] !== "\n" &&
+          text[i] !== "\r"
+        ) {
           field += text[i++];
         }
       }
@@ -90,7 +95,10 @@ function stripTitlePrefix(title: string, text: string): string {
   return text;
 }
 
-function extractTagsFromEnd(text: string): { definition: string; tags: string[] } {
+function extractTagsFromEnd(text: string): {
+  definition: string;
+  tags: string[];
+} {
   const found: string[] = [];
   let remaining = text.trimEnd();
 

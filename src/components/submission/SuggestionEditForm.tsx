@@ -211,9 +211,7 @@ export function SuggestionEditForm({
 
     // Prepare original tags
     const originalTagNames =
-      isExicon && exiconEntry
-        ? exiconEntry.tags.map((t) => t.name)
-        : [];
+      isExicon && exiconEntry ? exiconEntry.tags.map((t) => t.name) : [];
 
     const editDataPayload: EditEntrySuggestionData = {
       entryId: entryToSuggestEditFor.id,
@@ -360,7 +358,8 @@ export function SuggestionEditForm({
                   Suggested Description
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Format your description with rich text (bold, lists, tables, etc.). Type{" "}
+                  Format your description with rich text (bold, lists, tables,
+                  etc.). Type{" "}
                   <span className="font-mono text-destructive font-semibold">
                     @
                   </span>{" "}

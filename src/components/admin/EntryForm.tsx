@@ -199,7 +199,8 @@ export function EntryForm({
               Description <span className="text-destructive">*</span>
             </Label>
             <p className="text-sm text-muted-foreground">
-              Format your description with rich text (bold, lists, tables, etc.). Type{" "}
+              Format your description with rich text (bold, lists, tables,
+              etc.). Type{" "}
               <span className="font-mono text-destructive font-semibold">
                 @
               </span>{" "}

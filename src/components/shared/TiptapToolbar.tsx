@@ -200,7 +200,9 @@ export function TiptapToolbar({ editor }: TiptapToolbarProps) {
 
       {/* Clear Formatting */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+        onClick={() =>
+          editor.chain().focus().clearNodes().unsetAllMarks().run()
+        }
         title="Clear Formatting"
       >
         <RemoveFormatting size={16} />

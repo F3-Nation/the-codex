@@ -135,9 +135,9 @@ export default async function LexiconEntryPage({
                   isHtmlContent(lexiconEntry.description)
                     ? lexiconEntry.description
                     : convertPlainTextToHtml(
-                      lexiconEntry.description,
-                      Object.values(resolvedMentions)
-                    )
+                        lexiconEntry.description,
+                        Object.values(resolvedMentions),
+                      )
                 }
                 mentionedEntries={resolvedMentions}
               />

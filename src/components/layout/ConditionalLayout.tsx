@@ -13,7 +13,8 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const searchParams = useSearchParams();
   const embeddedParam = searchParams.get("embedded") === "true";
 
-  const [programmaticIframeDetected, setProgrammaticIframeDetected] = useState(false);
+  const [programmaticIframeDetected, setProgrammaticIframeDetected] =
+    useState(false);
 
   useEffect(() => {
     // Skip programmatic detection if URL parameter is already set

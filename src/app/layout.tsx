@@ -50,7 +50,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen relative`}
         suppressHydrationWarning={true}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="f3-theme">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          storageKey="f3-theme"
+        >
           <Suspense fallback={children}>
             <ConditionalLayout>{children}</ConditionalLayout>
           </Suspense>

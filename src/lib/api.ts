@@ -1141,7 +1141,9 @@ export async function applyApprovedSubmissionToDatabase(
         const tagIds = ensuredTags.map((t) => t.id).filter(Boolean);
         if (tagIds.length > 0) {
           // Use parameterized query with unnest to safely insert multiple rows
-          const placeholders = tagIds.map((_, i) => `($1, $${i + 2})`).join(",");
+          const placeholders = tagIds
+            .map((_, i) => `($1, $${i + 2})`)
+            .join(",");
           await client.query(
             `INSERT INTO entry_tags (entry_id, tag_id) VALUES ${placeholders} ON CONFLICT (entry_id, tag_id) DO NOTHING`,
             [id, ...tagIds],
