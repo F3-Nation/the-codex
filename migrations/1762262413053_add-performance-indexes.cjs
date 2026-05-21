@@ -11,11 +11,15 @@ exports.shorthands = undefined;
 exports.up = (pgm) => {
   console.log("[MIGRATION_LOG] Starting migration: add_performance_indexes UP");
 
-  // Add index on target_entry_id for entry_references table (in codex schema)
-  // This optimizes queries that join on target_entry_id (e.g., finding entries that reference a given entry)
+  // Add index on target_entry_id for entry_references table (in codex schema, if it exists)
   pgm.sql(`
-    CREATE INDEX IF NOT EXISTS idx_entry_references_target_entry_id
-    ON codex.entry_references(target_entry_id);
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'codex' AND tablename = 'entry_references') THEN
+        CREATE INDEX IF NOT EXISTS idx_entry_references_target_entry_id
+        ON codex.entry_references(target_entry_id);
+      END IF;
+    END $$;
   `);
 
   // Also create in public schema if it exists there
@@ -29,11 +33,15 @@ exports.up = (pgm) => {
     END $$;
   `);
 
-  // Add index on tag_id for entry_tags table (in codex schema)
-  // This optimizes queries that join on tag_id (e.g., finding all entries with a specific tag)
+  // Add index on tag_id for entry_tags table (in codex schema, if it exists)
   pgm.sql(`
-    CREATE INDEX IF NOT EXISTS idx_entry_tags_tag_id
-    ON codex.entry_tags(tag_id);
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'codex' AND tablename = 'entry_tags') THEN
+        CREATE INDEX IF NOT EXISTS idx_entry_tags_tag_id
+        ON codex.entry_tags(tag_id);
+      END IF;
+    END $$;
   `);
 
   // Also create in public schema if it exists there
