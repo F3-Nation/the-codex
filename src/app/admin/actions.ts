@@ -107,9 +107,10 @@ async function sendStatusUpdateNotification(
         <p><strong>Submitter:</strong> ${submission.submitterName} (${submission.submitterEmail})</p>
         <p><strong>Submission ID:</strong> ${submission.id}</p>
         <br>
-        ${status === "approved"
-          ? '<p style="color: #22c55e; font-weight: bold;">✅ This entry is now live in the Codex!</p>'
-          : '<p style="color: #ef4444;">This submission has been declined.</p>'
+        ${
+          status === "approved"
+            ? '<p style="color: #22c55e; font-weight: bold;">✅ This entry is now live in the Codex!</p>'
+            : '<p style="color: #ef4444;">This submission has been declined.</p>'
         }
         <hr>
         <p style="color: #666; font-size: 12px;">

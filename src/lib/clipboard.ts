@@ -9,8 +9,6 @@ export interface CopyResult {
  * for iframe and cross-origin contexts
  */
 export async function copyToClipboard(text: string): Promise<CopyResult> {
-
-
   // Strategy 1: Modern Clipboard API (works in most contexts)
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -21,7 +19,9 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
       console.warn("[Clipboard] Clipboard API failed:", error);
     }
   } else {
-    console.log("[Clipboard] Clipboard API not available or not secure context");
+    console.log(
+      "[Clipboard] Clipboard API not available or not secure context",
+    );
   }
 
   // Strategy 2: Textarea fallback (works in iframes)

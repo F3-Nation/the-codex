@@ -145,9 +145,9 @@ export default async function ExiconEntryPage({
                   isHtmlContent(exiconEntry.description)
                     ? exiconEntry.description
                     : convertPlainTextToHtml(
-                      exiconEntry.description,
-                      Object.values(resolvedMentions)
-                    )
+                        exiconEntry.description,
+                        Object.values(resolvedMentions),
+                      )
                 }
                 mentionedEntries={resolvedMentions}
               />

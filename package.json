@@ -22,7 +22,8 @@
     "db:migrate": "tsx scripts/db-migrate.ts up",
     "db:migrate:up": "tsx scripts/db-migrate.ts up",
     "db:migrate:down": "tsx scripts/db-migrate.ts down",
-    "db:migrate:redo": "tsx scripts/db-migrate.ts redo"
+    "db:migrate:redo": "tsx scripts/db-migrate.ts redo",
+    "seed": "tsx scripts/import-csv.ts"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -77,6 +78,7 @@
     "lucide-react": "^0.475.0",
     "next": "^15.2.6",
     "next-auth": "^4.24.11",
+    "next-themes": "^0.4.6",
     "patch-package": "^8.0.0",
     "pg": "^8.16.3",
     "psql": "^0.0.1",

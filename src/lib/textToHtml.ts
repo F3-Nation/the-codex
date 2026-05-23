@@ -24,7 +24,7 @@ function escapeHtml(text: string): string {
  */
 export function convertPlainTextToHtml(
   text: string,
-  mentionedEntries?: Array<AnyEntry | ReferencedEntry>
+  mentionedEntries?: Array<AnyEntry | ReferencedEntry>,
 ): string {
   if (!text) {
     return "<p></p>";
@@ -38,8 +38,7 @@ export function convertPlainTextToHtml(
       // Also add aliases to the map (only AnyEntry has aliases)
       if ("aliases" in entry && entry.aliases && Array.isArray(entry.aliases)) {
         entry.aliases.forEach((alias: string | Alias) => {
-          const aliasName =
-            typeof alias === "string" ? alias : alias.name;
+          const aliasName = typeof alias === "string" ? alias : alias.name;
           entryMap.set(aliasName.toLowerCase(), entry);
         });
       }

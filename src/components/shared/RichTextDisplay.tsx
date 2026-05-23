@@ -86,10 +86,16 @@ export function RichTextDisplay({
     // Replace mentions with interactive links
     mentionSpans.forEach((span) => {
       const entryId = span.getAttribute("data-id");
-      const entryName = span.getAttribute("data-label") || span.getAttribute("data-name") || span.textContent?.replace(/^@/, "") || "";
+      const entryName =
+        span.getAttribute("data-label") ||
+        span.getAttribute("data-name") ||
+        span.textContent?.replace(/^@/, "") ||
+        "";
       const entry = entryId ? mentionedEntries[entryId] : undefined;
-      const entryType = entry?.type || span.getAttribute("data-type") || "exicon";
-      const entryDescription = entry?.description || span.getAttribute("data-entry-description") || "";
+      const entryType =
+        entry?.type || span.getAttribute("data-type") || "exicon";
+      const entryDescription =
+        entry?.description || span.getAttribute("data-entry-description") || "";
 
       if (entryId) {
         const displayName = entry?.name || entryName;
@@ -106,7 +112,8 @@ export function RichTextDisplay({
         const baseUrl = getEntryBaseUrl(entryType as "exicon" | "lexicon");
         const link = document.createElement("a");
         link.href = `/${baseUrl}?entryId=${entryId}`;
-        link.className = "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
+        link.className =
+          "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
         link.textContent = `@${displayName}`;
 
         // Wrap in hover card trigger
@@ -123,7 +130,7 @@ export function RichTextDisplay({
     const walker = document.createTreeWalker(
       tempDiv,
       NodeFilter.SHOW_TEXT,
-      null
+      null,
     );
 
     let node;
@@ -151,22 +158,22 @@ export function RichTextDisplay({
 
         if (index > lastIndex) {
           fragment.appendChild(
-            document.createTextNode(text.substring(lastIndex, index))
+            document.createTextNode(text.substring(lastIndex, index)),
           );
         }
 
         // Try to find the entry in mentionedEntries by name
         let entry = Object.values(mentionedEntries).find(
-          (e) => e.name.toLowerCase() === mentionName.toLowerCase()
+          (e) => e.name.toLowerCase() === mentionName.toLowerCase(),
         );
 
         // If no exact match and mention has multiple words, try progressively shorter versions
-        if (!entry && mentionName.includes(' ')) {
-          const words = mentionName.split(' ');
+        if (!entry && mentionName.includes(" ")) {
+          const words = mentionName.split(" ");
           for (let i = words.length - 1; i > 0; i--) {
-            const shorterName = words.slice(0, i).join(' ');
+            const shorterName = words.slice(0, i).join(" ");
             entry = Object.values(mentionedEntries).find(
-              (e) => e.name.toLowerCase() === shorterName.toLowerCase()
+              (e) => e.name.toLowerCase() === shorterName.toLowerCase(),
             );
             if (entry) {
               mentionText = `@${entry.name}`;
@@ -176,10 +183,13 @@ export function RichTextDisplay({
         }
 
         if (entry) {
-          const entryBaseUrl = getEntryBaseUrl(entry.type as "exicon" | "lexicon");
+          const entryBaseUrl = getEntryBaseUrl(
+            entry.type as "exicon" | "lexicon",
+          );
           const link = document.createElement("a");
           link.href = `/${entryBaseUrl}?entryId=${entry.id}`;
-          link.className = "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
+          link.className =
+            "mention-link inline text-blue-600 hover:underline cursor-pointer hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950 px-0.5 rounded no-underline";
           link.textContent = mentionText;
 
           const wrapper = document.createElement("span");
@@ -203,7 +213,9 @@ export function RichTextDisplay({
       });
 
       if (lastIndex < text.length) {
-        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+        fragment.appendChild(
+          document.createTextNode(text.substring(lastIndex)),
+        );
       }
 
       textNode.parentNode?.replaceChild(fragment, textNode);
@@ -220,7 +232,8 @@ export function RichTextDisplay({
     tables.forEach((table) => {
       table.className = "rich-text-table w-full border-collapse my-4";
       table.querySelectorAll("th").forEach((th) => {
-        th.className = "border border-gray-300 dark:border-gray-700 px-3 py-2 text-left font-semibold bg-gray-100 dark:bg-gray-800";
+        th.className =
+          "border border-gray-300 dark:border-gray-700 px-3 py-2 text-left font-semibold bg-gray-100 dark:bg-gray-800";
       });
       table.querySelectorAll("td").forEach((td) => {
         td.className = "border border-gray-300 dark:border-gray-700 px-3 py-2";
@@ -229,10 +242,12 @@ export function RichTextDisplay({
 
     // Style lists
     tempDiv.querySelectorAll("ul").forEach((ul) => {
-      ul.className = "list-disc pl-5 my-2 space-y-1 text-gray-800 dark:text-gray-200";
+      ul.className =
+        "list-disc pl-5 my-2 space-y-1 text-gray-800 dark:text-gray-200";
     });
     tempDiv.querySelectorAll("ol").forEach((ol) => {
-      ol.className = "list-decimal pl-5 my-2 space-y-1 text-gray-800 dark:text-gray-200";
+      ol.className =
+        "list-decimal pl-5 my-2 space-y-1 text-gray-800 dark:text-gray-200";
     });
 
     setProcessedData({
@@ -260,9 +275,7 @@ export function RichTextDisplay({
   if (mentions.length === 0) {
     return (
       <div className={cn("rich-text-display max-w-none", className)}>
-        <div
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <div dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     );
   }
@@ -277,7 +290,10 @@ export function RichTextDisplay({
     const startIndex = remainingHtml.indexOf(marker);
 
     if (startIndex !== -1) {
-      const endIndex = remainingHtml.indexOf(endMarker, startIndex + marker.length);
+      const endIndex = remainingHtml.indexOf(
+        endMarker,
+        startIndex + marker.length,
+      );
 
       if (endIndex !== -1) {
         // Add HTML before the mention
@@ -287,7 +303,7 @@ export function RichTextDisplay({
             <span
               key={`before-${index}`}
               dangerouslySetInnerHTML={{ __html: beforeHtml }}
-            />
+            />,
           );
         }
 
@@ -312,12 +328,13 @@ export function RichTextDisplay({
               </Link>
             </HoverCardTrigger>
             <HoverCardContent className="w-80 p-3" align="start">
-              <p className="font-semibold text-foreground mb-1">
-                {entry.name}
-              </p>
+              <p className="font-semibold text-foreground mb-1">{entry.name}</p>
               <CardDescription className="text-muted-foreground">
                 {entry.description
-                  ? entry.description.replace(/<[^>]*>/g, "").substring(0, 150) + (entry.description.length > 150 ? "..." : "")
+                  ? entry.description
+                      .replace(/<[^>]*>/g, "")
+                      .substring(0, 150) +
+                    (entry.description.length > 150 ? "..." : "")
                   : "No description available."}
               </CardDescription>
               <Link
@@ -328,7 +345,7 @@ export function RichTextDisplay({
                 View Entry Page
               </Link>
             </HoverCardContent>
-          </HoverCard>
+          </HoverCard>,
         );
 
         remainingHtml = remainingHtml.substring(endIndex + endMarker.length);
@@ -342,13 +359,11 @@ export function RichTextDisplay({
       <span
         key="remaining-html"
         dangerouslySetInnerHTML={{ __html: remainingHtml }}
-      />
+      />,
     );
   }
 
   return (
-    <div className={cn("rich-text-display max-w-none", className)}>
-      {parts}
-    </div>
+    <div className={cn("rich-text-display max-w-none", className)}>{parts}</div>
   );
 }

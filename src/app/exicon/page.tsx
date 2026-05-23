@@ -102,19 +102,19 @@ function normalizeAliases(
 ): { id: string; name: string }[] {
   return Array.isArray(aliases)
     ? aliases
-      .map((alias, i) => {
-        if (typeof alias === "string") {
-          return { id: `alias-${entryId}-${i}`, name: alias };
-        }
-        if (alias && typeof alias.name === "string") {
-          return {
-            id: alias.id ?? `alias-${entryId}-${i}`,
-            name: alias.name,
-          };
-        }
-        return null;
-      })
-      .filter((a): a is { id: string; name: string } => a !== null)
+        .map((alias, i) => {
+          if (typeof alias === "string") {
+            return { id: `alias-${entryId}-${i}`, name: alias };
+          }
+          if (alias && typeof alias.name === "string") {
+            return {
+              id: alias.id ?? `alias-${entryId}-${i}`,
+              name: alias.name,
+            };
+          }
+          return null;
+        })
+        .filter((a): a is { id: string; name: string } => a !== null)
     : [];
 }
 
@@ -190,7 +190,7 @@ export default async function ExiconPage({
           aliases: normalizedAliases,
           resolvedMentionsData: resolvedMentions,
         };
-      })
+      }),
     )) as any;
   } catch (fetchError) {
     console.error("❌ ExiconPage: Failed to fetch entries:", fetchError);

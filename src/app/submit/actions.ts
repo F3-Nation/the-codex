@@ -80,9 +80,7 @@ async function sendSubmissionNotification(
       `,
     };
 
-
     await sgMail.send(adminMsg);
-
   } catch (error) {
     console.error("Error sending email notification:", error);
     console.error("Email error details:", {

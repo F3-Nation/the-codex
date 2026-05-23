@@ -37,7 +37,10 @@ export function CopyEntryButton({
   const [copied, setCopied] = useState(false);
 
   const stripHtml = (html: string) => {
-    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .trim();
   };
 
   const handleCopyUrl = async (event?: React.MouseEvent) => {

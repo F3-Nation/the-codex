@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Mention from "@tiptap/extension-mention";
@@ -28,11 +34,11 @@ interface TiptapEditorProps {
 
 // Custom blockquote extension without quotes
 const CustomBlockquote = Blockquote.extend({
-  name: 'blockquote',
+  name: "blockquote",
 
   // Override the renderHTML method to not add quotes
   renderHTML({ HTMLAttributes }) {
-    return ['blockquote', HTMLAttributes, 0]
+    return ["blockquote", HTMLAttributes, 0];
   },
 });
 
@@ -114,7 +120,7 @@ const MentionList = forwardRef<MentionListRef, MentionListProps>(
             key={item.id}
             className={cn(
               "suggestion-item",
-              index === selectedIndex ? "is-selected" : ""
+              index === selectedIndex ? "is-selected" : "",
             )}
             onClick={() => selectItem(index)}
           >
@@ -129,7 +135,7 @@ const MentionList = forwardRef<MentionListRef, MentionListProps>(
         ))}
       </div>
     );
-  }
+  },
 );
 
 export function TiptapEditor({
@@ -158,7 +164,7 @@ export function TiptapEditor({
       // Use our custom blockquote without quotes
       CustomBlockquote.configure({
         HTMLAttributes: {
-          class: 'rich-blockquote',
+          class: "rich-blockquote",
         },
       }),
       Table.configure({
@@ -245,7 +251,9 @@ export function TiptapEditor({
                 }
 
                 // Pass the props object (which contains { event }) to the ref's onKeyDown
-                return component.ref?.onKeyDown({ event: props.event }) ?? false;
+                return (
+                  component.ref?.onKeyDown({ event: props.event }) ?? false
+                );
               },
 
               onExit() {
@@ -305,7 +313,10 @@ export function TiptapEditor({
   }
 
   return (
-    <div ref={containerRef} className={cn("tiptap-editor-container", className)}>
+    <div
+      ref={containerRef}
+      className={cn("tiptap-editor-container", className)}
+    >
       {editable && <TiptapToolbar editor={editor} />}
       <EditorContent editor={editor} />
       {isLoading && (

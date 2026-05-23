@@ -137,9 +137,13 @@ export default function AdminPanel() {
 
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [submissionToReject, setSubmissionToReject] = useState<number | null>(null);
+  const [submissionToReject, setSubmissionToReject] = useState<number | null>(
+    null,
+  );
   const [adminNotes, setAdminNotes] = useState("");
-  const [resolvedMentions, setResolvedMentions] = useState<Record<string, AnyEntry>>({});
+  const [resolvedMentions, setResolvedMentions] = useState<
+    Record<string, AnyEntry>
+  >({});
 
   const [lexiconEntriesForDisplay, setLexiconEntriesForDisplay] = useState<
     AnyEntry[]
@@ -474,9 +478,11 @@ export default function AdminPanel() {
     setOriginalEntryForEditView(null);
 
     // Load mentioned entries for proper display
-    const mentionedEntryIds = submission.submissionType === "new"
-      ? (submission.data as NewEntrySuggestionData).mentionedEntries || []
-      : (submission.data as EditEntrySuggestionData).changes.mentionedEntries || [];
+    const mentionedEntryIds =
+      submission.submissionType === "new"
+        ? (submission.data as NewEntrySuggestionData).mentionedEntries || []
+        : (submission.data as EditEntrySuggestionData).changes
+            .mentionedEntries || [];
 
     const resolved: Record<string, AnyEntry> = {};
 
@@ -495,16 +501,17 @@ export default function AdminPanel() {
     }
 
     // Also extract and resolve plain text mentions from description
-    const description = submission.submissionType === "new"
-      ? (submission.data as NewEntrySuggestionData).description
-      : (submission.data as EditEntrySuggestionData).changes.description;
+    const description =
+      submission.submissionType === "new"
+        ? (submission.data as NewEntrySuggestionData).description
+        : (submission.data as EditEntrySuggestionData).changes.description;
 
     if (description) {
       // Regex to match @mentions - capture until we hit a newline or end of string
       // This allows multi-word mentions like "@Arm circles" and we'll match them against database
       const mentionRegex = /@([a-zA-Z0-9\s_.-]+?)(?=\s*[\r\n]|$)/g;
       const matches = Array.from(description.matchAll(mentionRegex));
-      const plainTextMentionNames = matches.map(m => m[1].trim());
+      const plainTextMentionNames = matches.map((m) => m[1].trim());
 
       for (const mentionName of plainTextMentionNames) {
         try {
@@ -512,24 +519,28 @@ export default function AdminPanel() {
           // First, try exact match with full name
           let searchResults = await searchEntriesByName(mentionName);
           let exactMatch = searchResults?.find(
-            e => e.name.toLowerCase() === mentionName.toLowerCase()
+            (e) => e.name.toLowerCase() === mentionName.toLowerCase(),
           );
 
           // If no exact match, try progressively shorter versions
           // This handles cases like "@Arm circles forward" where the entry is just "@Arm circles"
-          if (!exactMatch && mentionName.includes(' ')) {
-            const words = mentionName.split(' ');
+          if (!exactMatch && mentionName.includes(" ")) {
+            const words = mentionName.split(" ");
             for (let i = words.length - 1; i > 0; i--) {
-              const shorterName = words.slice(0, i).join(' ');
+              const shorterName = words.slice(0, i).join(" ");
               searchResults = await searchEntriesByName(shorterName);
               exactMatch = searchResults?.find(
-                e => e.name.toLowerCase() === shorterName.toLowerCase()
+                (e) => e.name.toLowerCase() === shorterName.toLowerCase(),
               );
               if (exactMatch) break;
             }
           }
 
-          const entry = exactMatch || (searchResults && searchResults.length > 0 ? searchResults[0] : null);
+          const entry =
+            exactMatch ||
+            (searchResults && searchResults.length > 0
+              ? searchResults[0]
+              : null);
           if (entry && !resolved[entry.id]) {
             resolved[entry.id] = entry;
           }
@@ -865,7 +876,7 @@ export default function AdminPanel() {
                           <div
                             className="prose prose-sm max-w-none line-clamp-2"
                             dangerouslySetInnerHTML={{
-                              __html: entry.description
+                              __html: entry.description,
                             }}
                           />
                         </TableCell>
@@ -1349,7 +1360,9 @@ export default function AdminPanel() {
                           Admin Message/Notes (Optional)
                         </Label>
                         <p className="text-sm text-muted-foreground">
-                          Add a message to communicate with the user about any additional changes you made or feedback on their submission.
+                          Add a message to communicate with the user about any
+                          additional changes you made or feedback on their
+                          submission.
                         </p>
                         <Textarea
                           id="admin-notes-new"
@@ -1380,7 +1393,11 @@ export default function AdminPanel() {
                             </TableCell>
                             <TableCell>
                               <RichTextDisplay
-                                htmlContent={(viewingSubmission.data as NewEntrySuggestionData).description}
+                                htmlContent={
+                                  (
+                                    viewingSubmission.data as NewEntrySuggestionData
+                                  ).description
+                                }
                                 mentionedEntries={resolvedMentions}
                                 className="prose prose-sm max-w-none"
                               />
@@ -1489,26 +1506,38 @@ export default function AdminPanel() {
                       {isEditingSubmission && editedSubmissionData ? (
                         <div className="space-y-4">
                           <p className="text-sm text-muted-foreground mb-4">
-                            You can edit any field below, not just the user&apos;s suggested changes. Fields marked with * were suggested by the user.
+                            You can edit any field below, not just the
+                            user&apos;s suggested changes. Fields marked with *
+                            were suggested by the user.
                           </p>
 
                           {/* Name - always shown */}
                           <div className="space-y-2">
                             <Label htmlFor="edit-change-name">
-                              Name {(editedSubmissionData as EditEntrySuggestionData).changes.name !== undefined && <span className="text-orange-500">*</span>}
+                              Name{" "}
+                              {(editedSubmissionData as EditEntrySuggestionData)
+                                .changes.name !== undefined && (
+                                <span className="text-orange-500">*</span>
+                              )}
                             </Label>
                             <Input
                               id="edit-change-name"
                               value={
-                                (editedSubmissionData as EditEntrySuggestionData).changes.name !== undefined
-                                  ? (editedSubmissionData as EditEntrySuggestionData).changes.name || ""
+                                (
+                                  editedSubmissionData as EditEntrySuggestionData
+                                ).changes.name !== undefined
+                                  ? (
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes.name || ""
                                   : originalEntryForEditView.name
                               }
                               onChange={(e) =>
                                 setEditedSubmissionData({
                                   ...editedSubmissionData,
                                   changes: {
-                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    ...(
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes,
                                     name: e.target.value,
                                   },
                                 } as EditEntrySuggestionData)
@@ -1519,19 +1548,29 @@ export default function AdminPanel() {
                           {/* Description - always shown */}
                           <div className="space-y-2">
                             <Label htmlFor="edit-change-description">
-                              Description {(editedSubmissionData as EditEntrySuggestionData).changes.description !== undefined && <span className="text-orange-500">*</span>}
+                              Description{" "}
+                              {(editedSubmissionData as EditEntrySuggestionData)
+                                .changes.description !== undefined && (
+                                <span className="text-orange-500">*</span>
+                              )}
                             </Label>
                             <TiptapEditor
                               value={
-                                (editedSubmissionData as EditEntrySuggestionData).changes.description !== undefined
-                                  ? (editedSubmissionData as EditEntrySuggestionData).changes.description || ""
+                                (
+                                  editedSubmissionData as EditEntrySuggestionData
+                                ).changes.description !== undefined
+                                  ? (
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes.description || ""
                                   : originalEntryForEditView.description
                               }
                               onChange={(html) =>
                                 setEditedSubmissionData({
                                   ...editedSubmissionData,
                                   changes: {
-                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    ...(
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes,
                                     description: html,
                                   },
                                 } as EditEntrySuggestionData)
@@ -1540,7 +1579,9 @@ export default function AdminPanel() {
                                 setEditedSubmissionData({
                                   ...editedSubmissionData,
                                   changes: {
-                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    ...(
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes,
                                     mentionedEntries: mentions.map((m) => m.id),
                                   },
                                 } as EditEntrySuggestionData);
@@ -1553,20 +1594,34 @@ export default function AdminPanel() {
                           {/* Aliases - always shown */}
                           <div className="space-y-2">
                             <Label htmlFor="edit-change-aliases">
-                              Aliases (comma-separated) {(editedSubmissionData as EditEntrySuggestionData).changes.aliases !== undefined && <span className="text-orange-500">*</span>}
+                              Aliases (comma-separated){" "}
+                              {(editedSubmissionData as EditEntrySuggestionData)
+                                .changes.aliases !== undefined && (
+                                <span className="text-orange-500">*</span>
+                              )}
                             </Label>
                             <Input
                               id="edit-change-aliases"
                               value={
-                                (editedSubmissionData as EditEntrySuggestionData).changes.aliases !== undefined
-                                  ? ((editedSubmissionData as EditEntrySuggestionData).changes.aliases || []).join(", ")
-                                  : (originalEntryForEditView.aliases || []).map(a => a.name).join(", ")
+                                (
+                                  editedSubmissionData as EditEntrySuggestionData
+                                ).changes.aliases !== undefined
+                                  ? (
+                                      (
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes.aliases || []
+                                    ).join(", ")
+                                  : (originalEntryForEditView.aliases || [])
+                                      .map((a) => a.name)
+                                      .join(", ")
                               }
                               onChange={(e) =>
                                 setEditedSubmissionData({
                                   ...editedSubmissionData,
                                   changes: {
-                                    ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                    ...(
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes,
                                     aliases: e.target.value
                                       .split(",")
                                       .map((a) => a.trim())
@@ -1581,13 +1636,25 @@ export default function AdminPanel() {
                           {originalEntryForEditView.type === "exicon" && (
                             <div className="space-y-2">
                               <Label>
-                                Tags {(editedSubmissionData as EditEntrySuggestionData).changes.tags !== undefined && <span className="text-orange-500">*</span>}
+                                Tags{" "}
+                                {(
+                                  editedSubmissionData as EditEntrySuggestionData
+                                ).changes.tags !== undefined && (
+                                  <span className="text-orange-500">*</span>
+                                )}
                               </Label>
                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-4 border rounded-md max-h-48 overflow-y-auto">
                                 {tags.map((tag) => {
-                                  const currentTags = (editedSubmissionData as EditEntrySuggestionData).changes.tags !== undefined
-                                    ? (editedSubmissionData as EditEntrySuggestionData).changes.tags || []
-                                    : (originalEntryForEditView as ExiconEntry).tags.map(t => t.name);
+                                  const currentTags =
+                                    (
+                                      editedSubmissionData as EditEntrySuggestionData
+                                    ).changes.tags !== undefined
+                                      ? (
+                                          editedSubmissionData as EditEntrySuggestionData
+                                        ).changes.tags || []
+                                      : (
+                                          originalEntryForEditView as ExiconEntry
+                                        ).tags.map((t) => t.name);
 
                                   return (
                                     <div
@@ -1600,11 +1667,15 @@ export default function AdminPanel() {
                                         onCheckedChange={(checked) => {
                                           const newTags = checked
                                             ? [...currentTags, tag.name]
-                                            : currentTags.filter((t) => t !== tag.name);
+                                            : currentTags.filter(
+                                                (t) => t !== tag.name,
+                                              );
                                           setEditedSubmissionData({
                                             ...editedSubmissionData,
                                             changes: {
-                                              ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                              ...(
+                                                editedSubmissionData as EditEntrySuggestionData
+                                              ).changes,
                                               tags: newTags,
                                             },
                                           } as EditEntrySuggestionData);
@@ -1627,21 +1698,33 @@ export default function AdminPanel() {
                           {originalEntryForEditView.type === "exicon" && (
                             <div className="space-y-2">
                               <Label htmlFor="edit-change-videoLink">
-                                Video Link {(editedSubmissionData as EditEntrySuggestionData).changes.videoLink !== undefined && <span className="text-orange-500">*</span>}
+                                Video Link{" "}
+                                {(
+                                  editedSubmissionData as EditEntrySuggestionData
+                                ).changes.videoLink !== undefined && (
+                                  <span className="text-orange-500">*</span>
+                                )}
                               </Label>
                               <Input
                                 id="edit-change-videoLink"
                                 type="url"
                                 value={
-                                  (editedSubmissionData as EditEntrySuggestionData).changes.videoLink !== undefined
-                                    ? (editedSubmissionData as EditEntrySuggestionData).changes.videoLink || ""
-                                    : (originalEntryForEditView as ExiconEntry).videoLink || ""
+                                  (
+                                    editedSubmissionData as EditEntrySuggestionData
+                                  ).changes.videoLink !== undefined
+                                    ? (
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes.videoLink || ""
+                                    : (originalEntryForEditView as ExiconEntry)
+                                        .videoLink || ""
                                 }
                                 onChange={(e) =>
                                   setEditedSubmissionData({
                                     ...editedSubmissionData,
                                     changes: {
-                                      ...(editedSubmissionData as EditEntrySuggestionData).changes,
+                                      ...(
+                                        editedSubmissionData as EditEntrySuggestionData
+                                      ).changes,
                                       videoLink: e.target.value,
                                     },
                                   } as EditEntrySuggestionData)
@@ -1658,7 +1741,9 @@ export default function AdminPanel() {
                               Admin Message/Notes (Optional)
                             </Label>
                             <p className="text-sm text-muted-foreground">
-                              Add a message to communicate with the user about any additional changes you made or feedback on their submission.
+                              Add a message to communicate with the user about
+                              any additional changes you made or feedback on
+                              their submission.
                             </p>
                             <Textarea
                               id="admin-notes"
@@ -1708,14 +1793,22 @@ export default function AdminPanel() {
                                   </TableCell>
                                   <TableCell>
                                     <RichTextDisplay
-                                      htmlContent={originalEntryForEditView.description}
-                                      mentionedEntries={originalEntryForEditView.resolvedMentionsData}
+                                      htmlContent={
+                                        originalEntryForEditView.description
+                                      }
+                                      mentionedEntries={
+                                        originalEntryForEditView.resolvedMentionsData
+                                      }
                                       className="prose prose-sm max-w-none"
                                     />
                                   </TableCell>
                                   <TableCell>
                                     <RichTextDisplay
-                                      htmlContent={(viewingSubmission.data as EditEntrySuggestionData).changes.description || ""}
+                                      htmlContent={
+                                        (
+                                          viewingSubmission.data as EditEntrySuggestionData
+                                        ).changes.description || ""
+                                      }
                                       mentionedEntries={resolvedMentions}
                                       className="prose prose-sm max-w-none"
                                     />
@@ -1730,7 +1823,9 @@ export default function AdminPanel() {
                                     Aliases
                                   </TableCell>
                                   <TableCell>
-                                    {formatAliases(originalEntryForEditView.aliases)}
+                                    {formatAliases(
+                                      originalEntryForEditView.aliases,
+                                    )}
                                   </TableCell>
                                   <TableCell>
                                     {formatAliases(
@@ -1752,8 +1847,9 @@ export default function AdminPanel() {
                                       </TableCell>
                                       <TableCell>
                                         {(
-                                          (originalEntryForEditView as ExiconEntry)
-                                            .tags || []
+                                          (
+                                            originalEntryForEditView as ExiconEntry
+                                          ).tags || []
                                         ).length > 0
                                           ? (
                                               (
@@ -1787,8 +1883,9 @@ export default function AdminPanel() {
                                         Video Link
                                       </TableCell>
                                       <TableCell>
-                                        {(originalEntryForEditView as ExiconEntry)
-                                          .videoLink || "None"}
+                                        {(
+                                          originalEntryForEditView as ExiconEntry
+                                        ).videoLink || "None"}
                                       </TableCell>
                                       <TableCell>
                                         {(
@@ -1865,8 +1962,8 @@ export default function AdminPanel() {
           <DialogHeader>
             <DialogTitle>Reject Submission</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this submission. This will be
-              sent to the submitter via email.
+              Please provide a reason for rejecting this submission. This will
+              be sent to the submitter via email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
