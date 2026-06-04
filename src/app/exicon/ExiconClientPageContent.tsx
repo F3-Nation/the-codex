@@ -9,6 +9,7 @@ import { EntryGrid } from "@/components/shared/EntryGrid";
 import type { ExiconEntry, Tag, FilterLogic, AnyEntry } from "@/lib/types";
 import { exportToCSV } from "@/lib/utils";
 import { TagFilter } from "@/components/exicon/TagFilter";
+import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Filter, Star } from "lucide-react";
 import Link from "next/link";
@@ -51,6 +52,8 @@ export const ExiconClientPageContent = ({
   const [filterLetter, setFilterLetter] = useState("All");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [filterLogic, setFilterLogic] = useState<FilterLogic>("OR");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Parse URL parameters on mount
@@ -59,6 +62,8 @@ export const ExiconClientPageContent = ({
     const tagLogicParam = searchParams.get("tagLogic");
     const searchParam = searchParams.get("search");
     const letterParam = searchParams.get("letter");
+    const dateFromParam = searchParams.get("dateFrom");
+    const dateToParam = searchParams.get("dateTo");
 
     const tagNames = tagsParam ? tagsParam.split(",").map((t) => t.trim()) : [];
     const nextSelectedTags = tagNames
@@ -77,6 +82,8 @@ export const ExiconClientPageContent = ({
       letterParam && letterParam.length === 1
         ? letterParam.toUpperCase()
         : "All";
+    const nextDateFrom = dateFromParam ?? "";
+    const nextDateTo = dateToParam ?? "";
 
     startTransition(() => {
       setSelectedTags((prev) =>
@@ -91,6 +98,8 @@ export const ExiconClientPageContent = ({
       setFilterLetter((prev) =>
         prev === nextFilterLetter ? prev : nextFilterLetter,
       );
+      setDateFrom((prev) => (prev === nextDateFrom ? prev : nextDateFrom));
+      setDateTo((prev) => (prev === nextDateTo ? prev : nextDateTo));
       setIsInitialized((prev) => (prev ? prev : true));
     });
   }, [searchParams, allTags]);
@@ -122,6 +131,14 @@ export const ExiconClientPageContent = ({
       params.set("letter", filterLetter);
     }
 
+    if (dateFrom) {
+      params.set("dateFrom", dateFrom);
+    }
+
+    if (dateTo) {
+      params.set("dateTo", dateTo);
+    }
+
     const nextSearch = params.toString();
 
     if (nextSearch === searchParamsString) {
@@ -135,6 +152,8 @@ export const ExiconClientPageContent = ({
     filterLogic,
     searchTerm,
     filterLetter,
+    dateFrom,
+    dateTo,
     isInitialized,
     allTags,
     router,
@@ -251,10 +270,20 @@ export const ExiconClientPageContent = ({
               );
         };
 
+        const matchesDate = () => {
+          if (!dateFrom && !dateTo) return true;
+          if (!entry.createdAt) return true;
+          const entryDate = entry.createdAt.substring(0, 10);
+          if (dateFrom && entryDate < dateFrom) return false;
+          if (dateTo && entryDate > dateTo) return false;
+          return true;
+        };
+
         return {
           entry,
           searchPriority,
-          matches: matchesSearch && matchesLetter && matchesTags(),
+          matches:
+            matchesSearch && matchesLetter && matchesTags() && matchesDate(),
         };
       })
       .filter((item) => item.matches)
@@ -267,7 +296,7 @@ export const ExiconClientPageContent = ({
         return a.entry.name.localeCompare(b.entry.name);
       })
       .map((item) => item.entry);
-  }, [initialEntries, searchTerm, filterLetter, selectedTags, filterLogic]);
+  }, [initialEntries, searchTerm, filterLetter, selectedTags, filterLogic, dateFrom, dateTo]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
@@ -308,6 +337,13 @@ export const ExiconClientPageContent = ({
           onTagChange={handleTagChange}
           filterLogic={filterLogic}
           onFilterLogicChange={setFilterLogic}
+        />
+
+        <DateRangeFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
         />
       </aside>
 
