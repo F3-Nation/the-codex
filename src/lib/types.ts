@@ -28,6 +28,7 @@ export interface BaseEntry {
   references?: ReferencedEntry[];
   mentionedEntries?: string[];
   resolvedMentionsData?: Record<string, AnyEntry>;
+  createdAt?: string;
 }
 export interface ExiconEntry extends BaseEntry {
   type: "exicon";
