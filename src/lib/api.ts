@@ -90,6 +90,9 @@ export const transformDbRowToEntry = (row: any): EntryWithReferences => {
     tags: row.tags || [],
     videoLink: row.video_link,
     mentionedEntries: mentionedEntries,
+    createdAt: row.created_at
+      ? new Date(row.created_at).toISOString()
+      : undefined,
     referencedBy: row.referenced_by_data
       ? row.referenced_by_data.map((ref: any) => ref.id)
       : [],
@@ -357,6 +360,7 @@ export const fetchAllEntries = async (
         e.aliases,
         e.video_link,
         e.mentioned_entries,
+        e.created_at,
         COALESCE(
           (
             SELECT json_agg(

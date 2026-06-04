@@ -7,6 +7,7 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Download, BookText, PencilLine } from "lucide-react";
 import { EntryGrid } from "@/components/shared/EntryGrid";
+import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Filter, Star } from "lucide-react";
 import Link from "next/link";
@@ -79,18 +80,24 @@ export const LexiconClientPageContent = ({
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLetter, setFilterLetter] = useState("All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Parse URL parameters on mount
   useEffect(() => {
     const searchParam = searchParams.get("search");
     const letterParam = searchParams.get("letter");
+    const dateFromParam = searchParams.get("dateFrom");
+    const dateToParam = searchParams.get("dateTo");
 
     const nextSearchTerm = searchParam ?? "";
     const nextFilterLetter =
       letterParam && letterParam.length === 1
         ? letterParam.toUpperCase()
         : "All";
+    const nextDateFrom = dateFromParam ?? "";
+    const nextDateTo = dateToParam ?? "";
 
     startTransition(() => {
       setSearchTerm((prev) =>
@@ -99,6 +106,8 @@ export const LexiconClientPageContent = ({
       setFilterLetter((prev) =>
         prev === nextFilterLetter ? prev : nextFilterLetter,
       );
+      setDateFrom((prev) => (prev === nextDateFrom ? prev : nextDateFrom));
+      setDateTo((prev) => (prev === nextDateTo ? prev : nextDateTo));
       setIsInitialized((prev) => (prev ? prev : true));
     });
   }, [searchParams]);
@@ -117,9 +126,17 @@ export const LexiconClientPageContent = ({
       params.set("letter", filterLetter);
     }
 
+    if (dateFrom) {
+      params.set("dateFrom", dateFrom);
+    }
+
+    if (dateTo) {
+      params.set("dateTo", dateTo);
+    }
+
     const newUrl = params.toString() ? `?${params.toString()}` : "/lexicon";
     router.replace(newUrl, { scroll: false });
-  }, [searchTerm, filterLetter, isInitialized, router]);
+  }, [searchTerm, filterLetter, dateFrom, dateTo, isInitialized, router]);
 
   // Function to handle the letter filter button clicks
   const handleFilterLetterChange = (letter: string) => {
@@ -221,10 +238,19 @@ export const LexiconClientPageContent = ({
           filterLetter === "All" ||
           entry.name.toLowerCase().startsWith(filterLetter.toLowerCase());
 
+        const matchesDate = () => {
+          if (!dateFrom && !dateTo) return true;
+          if (!entry.createdAt) return true;
+          const entryDate = entry.createdAt.substring(0, 10);
+          if (dateFrom && entryDate < dateFrom) return false;
+          if (dateTo && entryDate > dateTo) return false;
+          return true;
+        };
+
         return {
           entry,
           searchPriority,
-          matches: matchesLetter && matchesSearch,
+          matches: matchesLetter && matchesSearch && matchesDate(),
         };
       })
       .filter((item) => item.matches)
@@ -237,7 +263,7 @@ export const LexiconClientPageContent = ({
         return a.entry.name.localeCompare(b.entry.name);
       })
       .map((item) => item.entry);
-  }, [initialEntries, searchTerm, filterLetter]);
+  }, [initialEntries, searchTerm, filterLetter, dateFrom, dateTo]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
@@ -271,6 +297,13 @@ export const LexiconClientPageContent = ({
             </div>
           </CardContent>
         </Card>
+
+        <DateRangeFilter
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+        />
       </aside>
 
       {/* Main Content */}
