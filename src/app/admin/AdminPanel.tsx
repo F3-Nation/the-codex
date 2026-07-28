@@ -39,6 +39,7 @@ import {
   Pencil,
   Save,
   X,
+  RotateCcw,
 } from "lucide-react";
 import type {
   AnyEntry,
@@ -68,6 +69,8 @@ import {
   createEntryInDatabase,
   updateEntryInDatabase,
   deleteEntryFromDatabase,
+  restoreEntryFromDatabase,
+  fetchDeletedEntries,
   fetchTagsFromDatabase,
   createTagInDatabase,
   updateTagInDatabase,
@@ -149,6 +152,8 @@ export default function AdminPanel() {
     AnyEntry[]
   >([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
+
+  const [deletedEntries, setDeletedEntries] = useState<AnyEntry[]>([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLetter, setFilterLetter] = useState("All");
@@ -254,17 +259,20 @@ export default function AdminPanel() {
     setIsLoadingEntries(true);
 
     try {
-      const [entries, fetchedTags, pendingSubmissions] = await Promise.all([
-        fetchAllEntries(),
-        fetchTagsFromDatabase(),
-        fetchPendingSubmissionsFromDatabase(),
-      ]);
+      const [entries, fetchedTags, pendingSubmissions, deleted] =
+        await Promise.all([
+          fetchAllEntries(),
+          fetchTagsFromDatabase(),
+          fetchPendingSubmissionsFromDatabase(),
+          fetchDeletedEntries(),
+        ]);
       const sortedEntries = entries.sort((a, b) =>
         a.name.localeCompare(b.name),
       );
       setLexiconEntriesForDisplay(sortedEntries);
       setTags(fetchedTags.sort((a, b) => a.name.localeCompare(b.name)));
       setUserSubmissions(pendingSubmissions);
+      setDeletedEntries(deleted);
     } catch (error) {
       toast({
         title: "Error Fetching Data",
@@ -329,6 +337,25 @@ export default function AdminPanel() {
         toast({
           title: "Delete Failed",
           description: `Could not delete entry "${entry.name}".`,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleRestoreEntry = async (entry: AnyEntry) => {
+    if (confirm(`Restore "${entry.name}"? It will become visible again.`)) {
+      try {
+        await restoreEntryFromDatabase(entry.id);
+        toast({
+          title: "Entry Restored",
+          description: `"${entry.name}" has been restored.`,
+        });
+        await refetchAllData();
+      } catch (error) {
+        toast({
+          title: "Restore Failed",
+          description: `Could not restore entry "${entry.name}".`,
           variant: "destructive",
         });
       }
@@ -942,6 +969,73 @@ export default function AdminPanel() {
             Next
           </Button>
         </CardFooter>
+      </Card>
+
+      <Card className="shadow-lg mb-8">
+        <CardHeader>
+          <CardTitle>Deleted Entries</CardTitle>
+          <CardDescription>
+            Entries deleted from the Exicon/Lexicon. Restore one to make it
+            visible again, or edit it before restoring.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Deleted On</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deletedEntries.length > 0 ? (
+                  deletedEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">
+                        {entry.name}
+                      </TableCell>
+                      <TableCell className="capitalize">{entry.type}</TableCell>
+                      <TableCell>
+                        {entry.deletedAt
+                          ? new Date(entry.deletedAt).toLocaleDateString()
+                          : "Unknown"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditEntry(entry)}
+                          className="mr-2 hover:text-accent"
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRestoreEntry(entry)}
+                          className="text-green-600 hover:text-green-500"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          <span className="sr-only">Restore</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center h-24">
+                      No deleted entries.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
       </Card>
 
       <Card className="shadow-lg mb-8">

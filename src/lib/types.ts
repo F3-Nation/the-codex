@@ -29,6 +29,7 @@ export interface BaseEntry {
   mentionedEntries?: string[];
   resolvedMentionsData?: Record<string, AnyEntry>;
   createdAt?: string;
+  deletedAt?: string;
 }
 export interface ExiconEntry extends BaseEntry {
   type: "exicon";

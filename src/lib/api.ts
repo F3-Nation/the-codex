@@ -93,6 +93,9 @@ export const transformDbRowToEntry = (row: any): EntryWithReferences => {
     createdAt: row.created_at
       ? new Date(row.created_at).toISOString()
       : undefined,
+    deletedAt: row.deleted_at
+      ? new Date(row.deleted_at).toISOString()
+      : undefined,
     referencedBy: row.referenced_by_data
       ? row.referenced_by_data.map((ref: any) => ref.id)
       : [],
@@ -111,7 +114,7 @@ export async function getEntryIdByName(name: string): Promise<string | null> {
   const client = await getClient();
   try {
     const res = await client.query(
-      "SELECT id::text, title FROM entries WHERE LOWER(title) = LOWER($1)",
+      "SELECT id::text, title FROM entries WHERE LOWER(title) = LOWER($1) AND deleted_at IS NULL",
       [name],
     );
     if (res.rows.length > 0) {
@@ -349,7 +352,9 @@ export const fetchAllEntries = async (
 ): Promise<EntryWithReferences[]> => {
   const client = await getClient();
   try {
-    const whereClause = type ? `WHERE e.type = '${type}'` : "";
+    const whereClause = type
+      ? `WHERE e.type = '${type}' AND e.deleted_at IS NULL`
+      : "WHERE e.deleted_at IS NULL";
 
     const res = await client.query(`
       SELECT
@@ -361,6 +366,7 @@ export const fetchAllEntries = async (
         e.video_link,
         e.mentioned_entries,
         e.created_at,
+        e.deleted_at,
         COALESCE(
           (
             SELECT json_agg(
@@ -435,7 +441,7 @@ export const fetchAllEntries = async (
            ),
            '[]'::json
          ) AS tags
-         FROM entries WHERE id = ANY($1::text[])`,
+         FROM entries WHERE id = ANY($1::text[]) AND deleted_at IS NULL`,
         [Array.from(allMentionedIds)],
       );
 
@@ -500,6 +506,7 @@ export const getEntryByIdFromDatabase = async (
         e.aliases,
         e.video_link,
         e.mentioned_entries,
+        e.deleted_at,
         COALESCE(
           (
             SELECT json_agg(
@@ -569,7 +576,7 @@ export const getEntryByIdFromDatabase = async (
            ),
            '[]'::json
          ) AS tags
-         FROM entries WHERE id = ANY($1::text[])`,
+         FROM entries WHERE id = ANY($1::text[]) AND deleted_at IS NULL`,
         [entry.mentionedEntries],
       );
 
@@ -751,26 +758,16 @@ export const deleteEntryFromDatabase = async (
 ): Promise<void> => {
   const client = await getClient();
   try {
-    await client.query("BEGIN");
     const queryId = String(id);
 
-    await client.query("DELETE FROM entry_tags WHERE entry_id = $1", [queryId]);
-
-    await client.query(
-      "DELETE FROM entry_references WHERE source_entry_id = $1 OR target_entry_id = $1",
+    const res = await client.query(
+      "UPDATE entries SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL",
       [queryId],
     );
-
-    const res = await client.query("DELETE FROM entries WHERE id = $1", [
-      queryId,
-    ]);
     if (res.rowCount === 0) {
       console.warn(`Entry with ID ${id} not found for deletion.`);
     }
-
-    await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error(`Error deleting entry with ID ${id} from database:`, err);
     throw err;
   } finally {
@@ -778,11 +775,74 @@ export const deleteEntryFromDatabase = async (
   }
 };
 
+export const restoreEntryFromDatabase = async (
+  id: string | number,
+): Promise<void> => {
+  const client = await getClient();
+  try {
+    const queryId = String(id);
+
+    const res = await client.query(
+      "UPDATE entries SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL",
+      [queryId],
+    );
+    if (res.rowCount === 0) {
+      console.warn(`Entry with ID ${id} not found for restoration.`);
+    }
+  } catch (err) {
+    console.error(`Error restoring entry with ID ${id} from database:`, err);
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+export const getDeletedEntriesFromDatabase = async (): Promise<
+  EntryWithReferences[]
+> => {
+  const client = await getClient();
+  try {
+    const res = await client.query(`
+      SELECT
+        e.id,
+        e.title,
+        e.definition,
+        e.type,
+        e.aliases,
+        e.video_link,
+        e.mentioned_entries,
+        e.created_at,
+        e.deleted_at,
+        COALESCE(
+          (
+            SELECT json_agg(
+              json_build_object('id', t.id, 'name', t.name)
+            )
+            FROM tags t
+            JOIN entry_tags et ON t.id = et.tag_id
+            WHERE et.entry_id = e.id
+          ),
+          '[]'::json
+        ) AS tags
+      FROM entries e
+      WHERE e.deleted_at IS NOT NULL
+      ORDER BY e.deleted_at DESC
+    `);
+
+    return res.rows.map(transformDbRowToEntry);
+  } catch (err) {
+    console.error("Error fetching deleted entries from database:", err);
+    throw err;
+  } finally {
+    if (client) client.release();
+  }
+};
+
 export const getAllEntryNamesFromDatabase = async (): Promise<string[]> => {
   const client = await getClient();
   try {
     const res = await client.query(
-      "SELECT title FROM entries ORDER BY title ASC",
+      "SELECT title FROM entries WHERE deleted_at IS NULL ORDER BY title ASC",
     );
     return res.rows.map((row: { title: any }) => row.title);
   } catch (err: any) {
@@ -1402,19 +1462,22 @@ export async function searchEntriesByName(
          LEFT JOIN
             tags t ON et.tag_id = t.id
          WHERE
-            LOWER(e.title) LIKE $1
-            OR EXISTS (
-              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-              WHERE LOWER(alias_elem) LIKE $1
+            e.deleted_at IS NULL
+            AND (
+              LOWER(e.title) LIKE $1
+              OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE LOWER(alias_elem) LIKE $1
+              )
+              OR LOWER(e.definition) LIKE $1
+              -- Fuzzy matching: normalized comparison (removes spaces, hyphens, punctuation)
+              OR REGEXP_REPLACE(LOWER(e.title), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
+              OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
+                WHERE REGEXP_REPLACE(LOWER(alias_elem), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
+              )
+              OR REGEXP_REPLACE(LOWER(e.definition), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
             )
-            OR LOWER(e.definition) LIKE $1
-            -- Fuzzy matching: normalized comparison (removes spaces, hyphens, punctuation)
-            OR REGEXP_REPLACE(LOWER(e.title), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
-            OR EXISTS (
-              SELECT 1 FROM jsonb_array_elements_text(e.aliases::jsonb) AS alias_elem
-              WHERE REGEXP_REPLACE(LOWER(alias_elem), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
-            )
-            OR REGEXP_REPLACE(LOWER(e.definition), '[\s\-_.,!?;:''""]', '', 'g') LIKE $4
          GROUP BY
             e.id, e.title, e.definition, e.type, e.aliases, e.video_link, e.mentioned_entries
          ORDER BY

@@ -6,6 +6,8 @@ import {
   createEntryInDatabase as apiCreateEntryInDatabase,
   updateEntryInDatabase as apiUpdateEntryInDatabase,
   deleteEntryFromDatabase as apiDeleteEntryFromDatabase,
+  restoreEntryFromDatabase as apiRestoreEntryFromDatabase,
+  getDeletedEntriesFromDatabase as apiGetDeletedEntriesFromDatabase,
   fetchTagsFromDatabase as apiFetchTagsFromDatabase,
   createTagInDatabase as apiCreateTagInDatabase,
   updateTagInDatabase as apiUpdateTagInDatabase,
@@ -179,6 +181,16 @@ export async function deleteEntryFromDatabase(
   id: string | number,
 ): Promise<void> {
   return apiDeleteEntryFromDatabase(id);
+}
+
+export async function restoreEntryFromDatabase(
+  id: string | number,
+): Promise<void> {
+  return apiRestoreEntryFromDatabase(id);
+}
+
+export async function fetchDeletedEntries(): Promise<AnyEntry[]> {
+  return apiGetDeletedEntriesFromDatabase();
 }
 
 export async function fetchTagsFromDatabase(): Promise<Tag[]> {
