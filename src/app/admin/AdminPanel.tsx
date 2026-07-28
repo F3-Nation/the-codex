@@ -591,11 +591,17 @@ export default function AdminPanel() {
 
   const handleSaveSubmissionEdits = () => {
     if (viewingSubmission && editedSubmissionData) {
-      setViewingSubmission({
+      const updatedSubmission = {
         ...viewingSubmission,
         data: editedSubmissionData,
         adminNotes: adminNotes,
-      });
+      };
+      setViewingSubmission(updatedSubmission);
+      setUserSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === updatedSubmission.id ? updatedSubmission : s,
+        ),
+      );
     }
     setIsEditingSubmission(false);
     toast({
