@@ -85,10 +85,7 @@ export function DateRangeFilter({
           </button>
           <button
             onClick={() =>
-              applyPreset(
-                new Date("2000-01-01"),
-                new Date("2023-12-31"),
-              )
+              applyPreset(new Date("2000-01-01"), new Date("2023-12-31"))
             }
             className="px-2 py-1 text-xs rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80"
           >
