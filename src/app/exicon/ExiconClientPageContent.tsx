@@ -296,7 +296,15 @@ export const ExiconClientPageContent = ({
         return a.entry.name.localeCompare(b.entry.name);
       })
       .map((item) => item.entry);
-  }, [initialEntries, searchTerm, filterLetter, selectedTags, filterLogic, dateFrom, dateTo]);
+  }, [
+    initialEntries,
+    searchTerm,
+    filterLetter,
+    selectedTags,
+    filterLogic,
+    dateFrom,
+    dateTo,
+  ]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
