@@ -1944,6 +1944,7 @@ export default function AdminPanel() {
                   variant="destructive"
                   onClick={() => handleRejectSubmission(viewingSubmission?.id!)}
                   disabled={!viewingSubmission || isSubmitting}
+                  className="sm:mr-auto"
                 >
                   <XCircle className="h-4 w-4 mr-2" /> Reject
                 </Button>
@@ -1953,6 +1954,7 @@ export default function AdminPanel() {
                       handleApproveSubmission(viewingSubmission?.id!)
                     }
                     disabled={!viewingSubmission || isSubmitting}
+                    className="bg-green-600 text-white hover:bg-green-500"
                   >
                     <CheckCircle className="h-4 w-4 mr-2" /> Approve
                   </Button>
