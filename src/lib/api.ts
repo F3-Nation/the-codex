@@ -899,8 +899,13 @@ export async function ensureTagsExist(
   );
 
   if (tagsToInsert.length > 0) {
+    // Every tag needs an id: entry_tags.tag_id points at tags.id, and tags.id
+    // is the primary key. ON CONFLICT (name) relies on the tags_name_unique
+    // constraint so two concurrent approvals cannot create the same tag twice.
     await client.query(
-      `INSERT INTO tags (name) VALUES ${tagsToInsert.map((_, i) => `($${i + 1})`).join(",")} ON CONFLICT (name) DO NOTHING`,
+      `INSERT INTO tags (id, name, "createdAt", "updatedAt") VALUES ${tagsToInsert
+        .map((_, i) => `(gen_random_uuid(), $${i + 1}, NOW(), NOW())`)
+        .join(",")} ON CONFLICT (name) DO NOTHING`,
       tagsToInsert,
     );
     const insertedOrExistingRes = await client.query(
