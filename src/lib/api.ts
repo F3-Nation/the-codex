@@ -1020,6 +1020,26 @@ export async function createSubmissionInDatabase(
     client.release();
   }
 }
+/**
+ * A submission status update must touch exactly one row. Zero means the ID
+ * is unknown; more than one means duplicate IDs exist (as happened in prod
+ * before user_submissions got a primary key), and silently approving or
+ * rejecting several submissions at once is worse than failing loudly.
+ */
+function assertExactlyOneSubmissionUpdated(
+  rowCount: number | null,
+  id: number,
+): void {
+  if (rowCount === 0) {
+    throw new Error(`Submission with ID ${id} not found.`);
+  }
+  if (rowCount !== 1) {
+    throw new Error(
+      `Expected to update exactly one submission with ID ${id}, but ${rowCount} rows matched.`,
+    );
+  }
+}
+
 export const updateSubmissionStatusInDatabase = async (
   id: number,
   status: "pending" | "approved" | "rejected",
@@ -1039,9 +1059,7 @@ export const updateSubmissionStatusInDatabase = async (
             [status, id],
           );
 
-    if (res.rowCount === 0) {
-      throw new Error(`Submission with ID ${id} not found.`);
-    }
+    assertExactlyOneSubmissionUpdated(res.rowCount, id);
   } catch (err) {
     console.error(
       `Error updating submission status for ID ${id} to ${status}:`,
@@ -1065,10 +1083,11 @@ export async function applyApprovedSubmissionToDatabase(
       client = await getClient();
       const createdEntry = await createEntryInDatabase(newEntryData);
 
-      await client.query(
+      const res = await client.query(
         "UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2",
         ["approved", submission.id],
       );
+      assertExactlyOneSubmissionUpdated(res.rowCount, submission.id);
       return createdEntry;
     } catch (error) {
       console.error("Error creating entry from new submission:", error);
@@ -1218,10 +1237,11 @@ export async function applyApprovedSubmissionToDatabase(
       await Promise.all(insertPromises);
     }
 
-    await client.query(
+    const statusRes = await client.query(
       "UPDATE user_submissions SET status = $1, updated_at = NOW() WHERE id = $2",
       ["approved", submission.id],
     );
+    assertExactlyOneSubmissionUpdated(statusRes.rowCount, submission.id);
 
     await client.query("COMMIT");
 
