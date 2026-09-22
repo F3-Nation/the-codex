@@ -3,8 +3,9 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import dotenv from "dotenv";
-import runner from "node-pg-migrate";
-import type { Logger } from "node-pg-migrate/dist/types";
+import { runner, type RunnerOption } from "node-pg-migrate";
+
+type Logger = NonNullable<RunnerOption["logger"]>;
 
 type MigrationCommand = "up" | "down" | "redo";
 
