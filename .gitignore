@@ -5,3 +5,7 @@ node_modules
 certificates
 launchClaude.bat
 graphify-out
+
+# build and debug artifacts
+*.tsbuildinfo
+pglite-debug.log
