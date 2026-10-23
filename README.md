@@ -156,6 +156,23 @@ The app will be available at `http://localhost:3000`.
 
 - **Database Client**: Use a tool like `psql` or DBeaver to connect to the database specified in your `DATABASE_URL`.
 
+### Scripts
+
+| Command                                                                              | What it does                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                                                        | Next.js dev server with Turbopack at https://localhost:3001 (experimental HTTPS).                                                                                                                                                   |
+| `npm run build` / `start`                                                            | Production build and server.                                                                                                                                                                                                        |
+| `npm run typecheck`, `lint`, `format`, `format:check`                                | TypeScript, ESLint, Prettier.                                                                                                                                                                                                       |
+| `npm test` / `npm run test:e2e`                                                      | Node test runner; Playwright end-to-end tests.                                                                                                                                                                                      |
+| `npm run genkit:dev` / `genkit:watch`                                                | Start the Genkit developer UI for the AI flows in `src/ai/dev.ts` (optionally watching for changes).                                                                                                                                |
+| `npm run db:migrate` (same as `db:migrate:up`), `db:migrate:down`, `db:migrate:redo` | Run `node-pg-migrate` through `scripts/db-migrate.ts`. Options: `--count N`, `--file <migration>`, `--dry-run`, `--fake`, `--verbose`. Reads `DATABASE_URL` from `.env`.                                                            |
+| `npm run db:generate:migration -- <name>`                                            | Create a new empty migration in `migrations/` (`scripts/db-generate-migration.ts`).                                                                                                                                                 |
+| `npm run seed`                                                                       | `scripts/import-csv.ts`: loads `exicon.csv` and `lexicon.csv` from the repo root into the `entries` and `tags` tables.                                                                                                              |
+| `npm run firebase:secrets`                                                           | `scripts/firebase-secrets.sh`: reads `.env.firebase` (git-ignored) and creates or updates the matching secrets in Google Secret Manager for the `f3-the-codex` project, then grants the App Hosting backend access. Needs `gcloud`. |
+| `npm run deploy`                                                                     | Build, then deploy to Firebase App Hosting (`the-codex` backend).                                                                                                                                                                   |
+
+Never put a database URL or password in a script or commit it; use `.env` (ignored) or Secret Manager.
+
 ### Contributing
 
 We welcome contributions! If you would like to help improve this project, please follow these steps:
