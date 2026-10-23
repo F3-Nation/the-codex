@@ -23,7 +23,8 @@
     "db:migrate:up": "tsx scripts/db-migrate.ts up",
     "db:migrate:down": "tsx scripts/db-migrate.ts down",
     "db:migrate:redo": "tsx scripts/db-migrate.ts redo",
-    "seed": "tsx scripts/import-csv.ts"
+    "seed": "tsx scripts/import-csv.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.8.0",
@@ -103,6 +104,8 @@
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.1",
     "genkit-cli": "^1.8.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "node-pg-migrate": "^9.0.0",
     "postcss": "^8.5.28",
     "prettier": "^3.6.2",
@@ -113,5 +116,8 @@
   },
   "overrides": {
     "postcss": "^8.5.28"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
